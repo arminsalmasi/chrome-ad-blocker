@@ -32,5 +32,5 @@ assets:
 VERSION := $(shell $(PYTHON) -c "import json; print(json.load(open('manifest.json'))['version'])")
 package: check
 	rm -rf dist && mkdir -p dist
-	zip -qr dist/shieldblock-$(VERSION).zip manifest.json background.js LICENSE content icons popup rules -x '*.DS_Store'
+	zip -qr dist/shieldblock-$(VERSION).zip manifest.json background.js LICENSE THIRD_PARTY_NOTICES.md content icons popup rules -x '*.DS_Store'
 	@echo "Built dist/shieldblock-$(VERSION).zip"

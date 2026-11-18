@@ -15,8 +15,8 @@
 ### 1. Network Blocking (DNR Engine)
 - **Native Evaluation**: Requests are matched inside Chrome's DNR engine; no request interception runs in the service worker.
 - **Modular Static Rulesets**:
-  - `rules/ads.json`: About 40,600 ad, tracking, and malware domains: the hand-picked seed list (`scripts/sample_ads.txt`) merged with a snapshot of [StevenBlack/hosts](https://github.com/StevenBlack/hosts) (MIT), which unifies AdAway, URLHaus, and other curated hosts lists.
-  - `rules/trackers.json`: About 111,000 tracker domains: telemetry, analytics, and session-replay seed lists plus a snapshot of [AdGuard's CNAME-disguised trackers list](https://github.com/AdguardTeam/cname-trackers) (MIT), i.e. first-party-looking subdomains such as `metrics.site.com` that alias a tracker. Matching is by hostname from a static list; no DNS lookups are performed.
+  - `rules/ads.json`: About 40,600 ad, tracking, and malware domains: the hand-picked seed list (`scripts/sample_ads.txt`) merged with a snapshot of [StevenBlack/hosts](https://github.com/StevenBlack/hosts) (mixed upstream licenses, see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)), which unifies AdAway, URLHaus, and other curated hosts lists.
+  - `rules/trackers.json`: About 111,000 tracker domains: telemetry, analytics, and session-replay seed lists plus a snapshot of [AdGuard's CNAME-disguised trackers list](https://github.com/AdguardTeam/cname-trackers) (MIT, Adguard Software Ltd), i.e. first-party-looking subdomains such as `metrics.site.com` that alias a tracker. Matching is by hostname from a static list; no DNS lookups are performed.
   - `rules/cookie_protection.json`: Strips third-party `Cookie` and `Set-Cookie` headers from subresources only (scripts, images, XHR, media, fonts, etc.). Top-level and embedded frames keep their cookies, so iframes and logins keep working. Federated SSO, captcha, and payment domains (Google, Microsoft, Apple, GitHub, Okta, Auth0, Stripe, PayPal, hCaptcha, reCAPTCHA, Cloudflare challenges) are excluded.
 - **Compiler**: `scripts/build_rules.py` converts hosts, plain-domain, and whole-domain Adblock Plus lists into grouped DNR rules (1,000 domains per rule via `requestDomains`), so large lists stay well inside Chrome's 30,000 guaranteed static rules. See [Filter-List Compiler](#filter-list-compiler-scriptsbuild_rulespy).
 
@@ -117,7 +117,8 @@ python3 scripts/build_rules.py \
 ├── manifest.json                  # Manifest V3 configuration, permissions, ruleset declarations
 ├── background.js                  # Service worker: state sync, allowlist rule, content script registration
 ├── Makefile                       # Build (rules), test, and check targets
-├── LICENSE                        # MIT License
+├── LICENSE                        # MIT License (source code)
+├── THIRD_PARTY_NOTICES.md         # Attribution and licenses for bundled blocklist data
 ├── PRIVACY.md                     # Privacy policy (linked from the Web Store listing)
 ├── STORE_LISTING.md               # Copy-paste Web Store listing, permission justifications, checklist
 ├── content/
@@ -197,4 +198,6 @@ CI runs `test`, `check`, and `rules` on pushes to `main` and on pull requests, a
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+The **source code** is licensed under the [MIT License](LICENSE).
+
+The **blocklist data** in `rules/ads.json`, `rules/trackers.json`, and `scripts/lists/` is derived from [StevenBlack/hosts](https://github.com/StevenBlack/hosts) and [AdGuard's CNAME trackers list](https://github.com/AdguardTeam/cname-trackers) and stays under their upstream licenses, which include CC BY, CC BY-SA, and **non-commercial** (CC BY-NC-SA) terms. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for attribution, per-source licenses, and how to rebuild a list from permissively licensed sources only.

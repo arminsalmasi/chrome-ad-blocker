@@ -37,7 +37,7 @@ Blocked count: The toolbar badge shows how many requests were blocked on the cur
 
 Privacy: ShieldBlock does not collect, transmit, or sell any data. It has no analytics, no remote servers and no remote code. Settings are stored only on your device and are removed when you uninstall.
 
-Open source: Licensed under the MIT License. Source code and issue tracker: https://github.com/arminsalmasi/chrome-ad-blocker
+Open source: Code licensed under the MIT License. Blocklists from StevenBlack/hosts and AdGuard are used under their own licenses; see THIRD_PARTY_NOTICES.md in the repository. Source code and issue tracker: https://github.com/arminsalmasi/chrome-ad-blocker
 
 Privacy policy: https://github.com/arminsalmasi/chrome-ad-blocker/blob/main/PRIVACY.md
 ```
