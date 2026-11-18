@@ -9,6 +9,10 @@ A site **passes** when, with the extension:
 - the page keeps at least 70% of the baseline's visible text, and
 - for sites marked `"video": true`, a `<video>` element is playing.
 
+## Blocked-requests window test
+
+`make window-test` (or `node blocked_window_test.js [url]`) loads Dailymotion with the extension, opens the real popup via `chrome.action.openPopup()`, clicks **View blocked requests**, and checks that the window opens as a separate popup for the right tab, its total matches the blocked requests Chrome reported, every host is blocklisted, filtering and expanding work, the list resets on navigation, and the log is removed when the tab closes.
+
 ## Run
 
 ```bash

@@ -33,3 +33,7 @@ dist/
 # Site-test dependencies and output
 tests/site/node_modules/
 tests/site/results/
+
+# Design notes kept locally, not published
+APPROACH_CLAUDE.md
+APPROACH_GEMINI.md

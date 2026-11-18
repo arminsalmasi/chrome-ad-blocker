@@ -196,3 +196,136 @@ chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== "local") return;
   if (SETTING_KEYS.some((key) => key in changes)) scheduleSync();
 });
+
+// ---------------------------------------------------------------------------
+// Blocked-request log (for the popup's "View blocked requests" window).
+//
+// DNR doesn't expose blocked URLs to packed extensions, so we observe
+// webRequest errors (read-only, non-blocking) and keep requests that failed
+// with ERR_BLOCKED_BY_CLIENT. The log lives in chrome.storage.session: memory
+// only, never synced or sent anywhere, cleared on navigation, tab close, and
+// browser exit.
+// ---------------------------------------------------------------------------
+const BLOCKED_KEY_PREFIX = "blocked:";
+const BLOCKED_MAX_PER_TAB = 1000;
+const BLOCKED_URL_MAX = 600; // keeps the worst case well under storage.session's 10 MB
+const BLOCKED_FLUSH_MS = 250;
+
+const blockedLog = new Map(); // tabId -> { pageUrl, entries: [] }
+const lastActivity = new Map(); // tabId -> ms, for evicting idle tabs under quota pressure
+const dirtyTabs = new Set();
+// Tabs that navigated or closed before the persisted log finished loading;
+// their persisted entries are stale and must not be merged back.
+const changedBeforeLoad = new Set();
+let blockedLogLoaded = false;
+let flushTimer = null;
+
+const blockedLogReady = chrome.storage.session.get(null).then((all) => {
+  for (const [key, value] of Object.entries(all)) {
+    if (!key.startsWith(BLOCKED_KEY_PREFIX) || !value || !Array.isArray(value.entries)) continue;
+    const tabId = Number(key.slice(BLOCKED_KEY_PREFIX.length));
+    if (changedBeforeLoad.has(tabId)) continue;
+    // Merge in case events were recorded before the load finished.
+    const live = blockedLog.get(tabId);
+    blockedLog.set(tabId, live ? { ...value, entries: value.entries.concat(live.entries) } : value);
+  }
+}).catch((err) => console.error("Blocked log load failed:", err))
+  .finally(() => { blockedLogLoaded = true; changedBeforeLoad.clear(); });
+
+function markDirty(tabId) {
+  dirtyTabs.add(tabId);
+  lastActivity.set(tabId, Date.now());
+  if (!flushTimer) flushTimer = setTimeout(flushBlockedLog, BLOCKED_FLUSH_MS);
+}
+
+async function writeKey(key, value) {
+  try {
+    await chrome.storage.session.set({ [key]: value });
+    return true;
+  } catch (_) {
+    // Likely the 10 MB session quota (shared by all tabs). Store a trimmed
+    // copy; the in-memory log keeps everything.
+    try {
+      await chrome.storage.session.set({ [key]: { ...value, entries: value.entries.slice(-100) } });
+      return true;
+    } catch (err) {
+      return false;
+    }
+  }
+}
+
+async function flushBlockedLog() {
+  flushTimer = null;
+  await blockedLogReady;
+  const tabs = [...dirtyTabs];
+  dirtyTabs.clear();
+  const failed = [];
+  for (const tabId of tabs) {
+    const key = BLOCKED_KEY_PREFIX + tabId;
+    const log = blockedLog.get(tabId);
+    if (!log) {
+      await chrome.storage.session.remove(key).catch(() => failed.push(tabId));
+    } else if (!(await writeKey(key, log))) {
+      failed.push(tabId);
+    }
+  }
+  if (!failed.length) return;
+  // Still over quota: drop the stored copies of the least recently active
+  // other tabs (their in-memory logs stay until the worker restarts).
+  const idle = [...lastActivity.entries()].filter(([id]) => !failed.includes(id))
+    .sort((a, b) => a[1] - b[1]).slice(0, 5).map(([id]) => BLOCKED_KEY_PREFIX + id);
+  await chrome.storage.session.remove(idle).catch(() => {});
+  for (const tabId of failed) dirtyTabs.add(tabId); // retry on the next flush
+  console.warn("Blocked log: session storage full; evicted idle tabs", idle);
+}
+
+function resetBlockedLog(tabId, pageUrl) {
+  if (!blockedLogLoaded) changedBeforeLoad.add(tabId);
+  blockedLog.set(tabId, { pageUrl: pageUrl || "", entries: [] });
+  markDirty(tabId);
+}
+
+// Reset when the new page's response arrives (effectively when it commits), not
+// when the navigation starts: a slow or cancelled click keeps the visible page's
+// list intact. (webNavigation.onCommitted would need an extra install warning.)
+chrome.webRequest.onResponseStarted.addListener(
+  (details) => {
+    if (details.tabId >= 0 && details.frameId === 0) resetBlockedLog(details.tabId, details.url);
+  },
+  { urls: ["<all_urls>"], types: ["main_frame"] }
+);
+
+chrome.webRequest.onErrorOccurred.addListener(
+  (details) => {
+    if (details.error !== "net::ERR_BLOCKED_BY_CLIENT" || details.tabId < 0) return;
+    let host = "";
+    try {
+      const u = new URL(details.url);
+      host = u.hostname || u.protocol.replace(/:$/, ""); // e.g. "blob" has no hostname
+    } catch (_) {
+      return;
+    }
+    let log = blockedLog.get(details.tabId);
+    if (!log) {
+      log = { pageUrl: "", entries: [] };
+      blockedLog.set(details.tabId, log);
+    }
+    log.entries.push({
+      url: details.url.slice(0, BLOCKED_URL_MAX),
+      host,
+      type: details.type,
+      initiator: details.initiator || "",
+      time: Math.round(details.timeStamp)
+    });
+    if (log.entries.length > BLOCKED_MAX_PER_TAB) log.entries.splice(0, log.entries.length - BLOCKED_MAX_PER_TAB);
+    markDirty(details.tabId);
+  },
+  { urls: ["<all_urls>"] }
+);
+
+chrome.tabs.onRemoved.addListener((tabId) => {
+  if (!blockedLogLoaded) changedBeforeLoad.add(tabId);
+  blockedLog.delete(tabId);
+  markDirty(tabId);
+  lastActivity.delete(tabId);
+});

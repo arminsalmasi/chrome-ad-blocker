@@ -133,9 +133,9 @@ h1 { font-size: 50px; line-height: 1.12; margin: 26px 0 30px; letter-spacing: -0
 ul { margin: 0; padding: 0; list-style: none; }
 li { font-size: 23px; color: #c9d1d9; margin: 0 0 16px; padding-left: 34px; position: relative; }
 li::before { content: ""; position: absolute; left: 0; top: 9px; width: 14px; height: 14px; border-radius: 50%; background: #ea3943; }
-.popup { width: 448px; height: 756px; border-radius: 18px; overflow: hidden; flex: none;
+.popup { width: 422px; height: 760px; border-radius: 18px; overflow: hidden; flex: none;
   box-shadow: 0 30px 80px rgba(0,0,0,.6), 0 0 0 1px #30363d; }
-.popup iframe { width: 320px; height: 540px; border: 0; transform: scale(1.4); transform-origin: 0 0; background: #12151c; }
+.popup iframe { width: 320px; height: 576px; border: 0; transform: scale(1.32); transform-origin: 0 0; background: #12151c; }
 """
     render(page(body, css), out, 1280, 800)
 
@@ -152,7 +152,7 @@ def main() -> None:
     store = os.path.join(ROOT, "store")
     screenshot(os.path.join(store, "screenshot-1.png"),
                "Block ads and trackers. Keep pages working.",
-               ["~150,000 ad, tracker and cloaked-tracker domains",
+               ["~219,000 ad and tracker domains, 7,800 sites cleaned up",
                 "Strips third-party cookies from subresources",
                 "Anti-adblock stubs keep sites from breaking",
                 "No data collection. Everything runs locally."],
@@ -161,7 +161,7 @@ def main() -> None:
                "You decide what runs, site by site.",
                ["Allowlist a site and its subdomains in one click",
                 "Toggle ads, trackers, cookies and cosmetics separately",
-                "Live blocked-request count on the toolbar badge",
+                "See exactly what was blocked, in its own window",
                 "Open source, MIT licensed"],
                "shop.example.com", 0, allowlisted=True)
 

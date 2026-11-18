@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Blocked requests – ShieldBlock</title>
+  <link rel="stylesheet" href="blocked.css">
+</head>
+<body>
+  <header class="header">
+    <img src="../icons/icon48.png" alt="" width="28" height="28">
+    <div class="title">
+      <h1>Blocked requests</h1>
+      <div id="page" class="page">Loading…</div>
+    </div>
+    <div class="total"><span id="total">0</span><small>blocked</small></div>
+  </header>
+
+  <div class="toolbar">
+    <input id="filter" type="search" placeholder="Filter by domain, URL or type" autocomplete="off">
+    <span id="summary" class="summary"></span>
+  </div>
+
+  <main id="list" class="list" aria-live="polite"></main>
+  <p id="empty" class="empty" hidden>No requests have been blocked on this page yet.</p>
+
+  <footer class="footer">
+    Updates live while the page loads. Kept in memory only and cleared when the tab navigates or closes.
+    Requests blocked by other extensions may also appear.
+  </footer>
+  <script src="blocked.js"></script>
+</body>
+</html>
