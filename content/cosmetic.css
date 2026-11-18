@@ -35,7 +35,11 @@ amp-embed[type="adsense"] {
     [class*=" ad-slot__"],
     .container__ads,
     .stack__ads,
-    [data-ad-label-text]):not(:has(p, h1, h2, h3, h4, article)) {
+    [data-ad-label-text],
+    [data-ad-zone],
+    [id^="display_ads_"],
+    [class^="AdColumn__"],
+    [class*=" AdColumn__"]):not(:has(p, h1, h2, h3, h4, article)) {
   display: none !important;
 }
 
