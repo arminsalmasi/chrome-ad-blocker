@@ -1,3 +1,19 @@
 # Domains that must never be blocked, even if an upstream list contains them.
 # One domain per line; each entry also covers its subdomains.
 # Add a domain here when a blocklist entry breaks a site, then run `make rules`.
+
+# Consent management platforms (CMPs). Some upstream hosts lists block these,
+# which hides the cookie banner but breaks sites that wait for a consent signal
+# (TCF __tcfapi) before loading content, video, or embeds. Found by the CNN
+# site test (OneTrust + IAB vendor list blocked -> GVLError / TypeError).
+cookielaw.org
+onetrust.com
+consensu.org
+cmp.inmobi.com
+cmp.quantcast.com
+privacy-mgmt.com
+cookiebot.com
+usercentrics.eu
+privacy-center.org
+consentmanager.net
+trustarc.com

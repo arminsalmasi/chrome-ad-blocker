@@ -29,3 +29,7 @@ _metadata/
 
 # Web Store package output
 dist/
+
+# Site-test dependencies and output
+tests/site/node_modules/
+tests/site/results/

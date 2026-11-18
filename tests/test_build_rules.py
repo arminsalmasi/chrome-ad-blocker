@@ -9,7 +9,8 @@ import gzip  # noqa: E402
 import tempfile  # noqa: E402
 
 from build_rules import (  # noqa: E402
-    apply_exclusions, build_dnr_rules, clean_domain, collapse_subdomains, dump_domains, read_domains,
+    apply_exclusions, build_dnr_rules, clean_domain, collapse_subdomains, dump_domains, parse_rule,
+    read_domains, read_rules,
 )
 
 
@@ -84,6 +85,29 @@ class BuildRules(unittest.TestCase):
 
     def test_empty_input_yields_no_rules(self):
         self.assertEqual(build_dnr_rules([]), [])
+
+
+class ThirdParty(unittest.TestCase):
+    def test_parse_rule_flags_third_party(self):
+        self.assertEqual(parse_rule("||t.example.com^$third-party"), ("t.example.com", True))
+        self.assertEqual(parse_rule("||t.example.com^$3p,important"), ("t.example.com", True))
+        self.assertEqual(parse_rule("||t.example.com^"), ("t.example.com", False))
+        self.assertEqual(parse_rule("0.0.0.0 t.example.com"), ("t.example.com", False))
+        # Narrowing options are still rejected, with or without third-party.
+        for line in ["||t.example.com^$third-party,script", "||t.example.com^$~third-party",
+                     "||t.example.com^$third-party,domain=a.com"]:
+            with self.subTest(line=line):
+                self.assertIsNone(parse_rule(line))
+
+    def test_third_party_rules_use_domain_type(self):
+        rules = build_dnr_rules(["t.com"], third_party_only=True)
+        self.assertEqual(rules[0]["condition"]["domainType"], "thirdParty")
+
+    def test_snapshot_round_trip_keeps_flag(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "s.txt.gz")
+            dump_domains(path, ["src"], {"a.com"}, {"t.com"})
+            self.assertEqual(read_rules([path]), ({"a.com"}, {"t.com"}))
 
 
 class CollapseSubdomains(unittest.TestCase):

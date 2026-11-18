@@ -26,9 +26,10 @@ DOMAIN_REGEX = re.compile(
 # hide elements on a site; they must never become network block rules.
 COSMETIC_MARKERS = ("##", "#@#", "#?#", "#$#", "#%#", "#@$#", "#@?#", "$$", "$@$")
 
-# Only options that don't narrow the rule may be dropped. "$third-party" is NOT
-# safe: emitting "||domain^" without it would also block first-party loads.
+# Only options that don't narrow the rule may be dropped. "$third-party" is
+# not dropped: it is kept and emitted as condition.domainType = "thirdParty".
 SAFE_ABP_OPTIONS = {"all", "important"}
+THIRD_PARTY_OPTIONS = {"third-party", "3p"}
 
 DNR_MAX_RULES_PER_RULESET = 30000
 DEFAULT_DOMAINS_PER_RULE = 1000
@@ -41,20 +42,28 @@ IGNORED_HOSTS = {
 POPULAR_UPSTREAM_LISTS = {
     "stevenblack": "https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts",
     "adguard_dns": "https://adguardteam.github.io/HostlistsRegistry/assets/filter_1.txt",
-    "easylist": "https://v.firebog.net/hosts/Easylist.txt",
-    "easyprivacy": "https://v.firebog.net/hosts/Easyprivacy.txt",
+    "easylist": "https://easylist.to/easylist/easylist.txt",
+    "easyprivacy": "https://easylist.to/easylist/easyprivacy.txt",
     "cname_trackers": "https://raw.githubusercontent.com/AdguardTeam/cname-trackers/master/data/combined_disguised_trackers_justdomains.txt"
 }
 
 
 def clean_domain(raw_line: str) -> str | None:
-    """Return a bare domain if the line blocks an entire domain, else None.
+    """Return a bare domain if the line blocks an entire domain for every
+    initiator, else None. Third-party-only rules return None here; use
+    parse_rule() to get them with their flag."""
+    parsed = parse_rule(raw_line)
+    return parsed[0] if parsed and not parsed[1] else None
+
+
+def parse_rule(raw_line: str) -> tuple[str, bool] | None:
+    """Parse a whole-domain block rule into (domain, third_party_only).
 
     Accepts hosts entries ("0.0.0.0 example.com"), plain domains, and ABP
-    domain anchors ("||example.com^", optionally with safe options). Rejects
+    domain anchors ("||example.com^") with no options, safe options
+    ($important, $all), or $third-party/$3p (third_party_only=True). Rejects
     anything narrower than a full domain (paths, cosmetic filters, regexes,
-    exceptions, type-restricted options) so it is never widened into a
-    site-wide block.
+    exceptions, type- or domain-restricted options) so it is never widened.
     """
     line = raw_line.strip()
     if not line or line.startswith(("#", "!", "[", "@@")):
@@ -74,11 +83,13 @@ def clean_domain(raw_line: str) -> str | None:
         return None
 
     is_abp = candidate.startswith("||")
+    third_party = False
     if "$" in candidate:
         candidate, options = candidate.split("$", 1)
         opts = {o.strip().lower() for o in options.split(",") if o.strip()}
-        if not opts <= SAFE_ABP_OPTIONS:
+        if not opts <= SAFE_ABP_OPTIONS | THIRD_PARTY_OPTIONS:
             return None
+        third_party = bool(opts & THIRD_PARTY_OPTIONS)
 
     if is_abp:
         candidate = candidate[2:]
@@ -97,7 +108,7 @@ def clean_domain(raw_line: str) -> str | None:
         return None
 
     if DOMAIN_REGEX.match(candidate):
-        return candidate
+        return candidate, third_party
     return None
 
 
@@ -143,6 +154,7 @@ def build_dnr_rules(
     domains_per_rule: int = DEFAULT_DOMAINS_PER_RULE,
     excluded: list[str] | None = None,
     resource_types: list[str] | None = None,
+    third_party_only: bool = False,
 ) -> list[dict]:
     """Group domains into block rules via condition.requestDomains.
 
@@ -160,6 +172,8 @@ def build_dnr_rules(
             condition["resourceTypes"] = resource_types
         if excluded:
             condition["excludedRequestDomains"] = excluded
+        if third_party_only:
+            condition["domainType"] = "thirdParty"
         rules.append({
             "id": start_id + len(rules),
             "priority": 1,
@@ -189,6 +203,20 @@ def read_domains(sources: list[str], strict: bool = False) -> set[str]:
     return domains
 
 
+def read_rules(sources: list[str]) -> tuple[set[str], set[str]]:
+    """Parse sources into (blocked domains, third-party-only domains)."""
+    plain, third = set(), set()
+    for src in sources:
+        count = 0
+        for line in fetch_or_read_file(src):
+            parsed = parse_rule(line)
+            if parsed:
+                (third if parsed[1] else plain).add(parsed[0])
+                count += 1
+        print(f"  Parsed {count} valid entries from {src}")
+    return plain, third
+
+
 def covered_by(domain: str, parents: set[str]) -> bool:
     """True if domain equals, or is a subdomain of, any entry in parents."""
     labels = domain.split(".")
@@ -200,25 +228,32 @@ def apply_exclusions(domains: set[str], excluded: set[str]) -> set[str]:
     return {d for d in domains if not covered_by(d, excluded)}
 
 
-def dump_domains(path: str, sources: list[str], domains: set[str]) -> None:
-    """Write a cleaned, sorted domain snapshot (one per line) with provenance."""
+def dump_lines(path: str, sources: list[str], lines: list[str], what: str) -> None:
+    """Write a snapshot (one entry per line) with a provenance header. A .gz
+    path is gzipped byte-reproducibly (mtime=0, no embedded filename)."""
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     resolved = [POPULAR_UPSTREAM_LISTS.get(s.lower(), s) for s in sources]
     with contextlib.ExitStack() as stack:
         if path.endswith(".gz"):
-            # mtime=0 / empty filename keep output byte-identical for identical content.
             raw = stack.enter_context(open(path, "wb"))
             gz = stack.enter_context(gzip.GzipFile(fileobj=raw, mode="wb", mtime=0, filename=""))
             f = stack.enter_context(io.TextIOWrapper(gz, encoding="utf-8"))
         else:
             f = stack.enter_context(open(path, "w", encoding="utf-8"))
-        f.write("# Generated by scripts/build_rules.py --dump-domains. Do not edit by hand.\n")
+        f.write("# Generated by scripts/build_rules.py / build_cosmetics.py. Do not edit by hand.\n")
         for src in resolved:
             f.write(f"# Source: {src}\n")
-        f.write(f"# Domains: {len(domains)}\n")
-        for dom in sorted(domains):
-            f.write(dom + "\n")
-    print(f"Wrote {len(domains)} domains to {path}")
+        f.write(f"# Entries: {len(lines)} {what}\n")
+        for line in lines:
+            f.write(line + "\n")
+    print(f"Wrote {len(lines)} {what} to {path}")
+
+
+def dump_domains(path: str, sources: list[str], domains: set[str], third_party: set[str] = frozenset()) -> None:
+    """Domain snapshot: plain domains one per line, third-party-only domains as
+    "||domain^$third-party"."""
+    lines = sorted(domains) + [f"||{d}^$third-party" for d in sorted(third_party)]
+    dump_lines(path, sources, lines, f"domains ({len(third_party)} third-party-only)")
 
 
 def main():
@@ -245,23 +280,29 @@ def main():
         parser.error("at least one --input is required")
 
     try:
-        all_domains = read_domains(args.input)
+        all_domains, third_domains = read_rules(args.input)
         excluded = sorted(read_domains(args.exclude, strict=True)) if args.exclude else []
     except Exception as err:
         print(f"Failed to read sources: {err}", file=sys.stderr)
         sys.exit(1)
 
     if args.dump_domains:
-        dump_domains(args.dump_domains, args.input, all_domains)
+        dump_domains(args.dump_domains, args.input, all_domains, third_domains)
         return
 
     # Excluded domains (and their subdomains) are also dropped from the list
     # itself; excludedRequestDomains then protects them from parent entries.
     all_domains = apply_exclusions(all_domains, set(excluded))
     domains = collapse_subdomains(all_domains)
-    print(f"\nTotal unique domains: {len(all_domains)} ({len(domains)} after collapsing covered subdomains)")
+    # Third-party-only entries already blocked outright are redundant.
+    third_domains = {d for d in apply_exclusions(third_domains, set(excluded)) if not covered_by(d, all_domains)}
+    third_list = collapse_subdomains(third_domains)
+    print(f"\nTotal unique domains: {len(all_domains)} ({len(domains)} after collapsing covered subdomains)"
+          f"; third-party-only: {len(third_list)}")
 
     rules = build_dnr_rules(domains, domains_per_rule=args.domains_per_rule, excluded=excluded)
+    rules += build_dnr_rules(third_list, start_id=len(rules) + 1, domains_per_rule=args.domains_per_rule,
+                             excluded=excluded, third_party_only=True)
     chunk_size = args.max_rules_per_file
     chunks = [rules[i:i + chunk_size] for i in range(0, len(rules), chunk_size)] or [[]]
 

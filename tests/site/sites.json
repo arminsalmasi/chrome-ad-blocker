@@ -1,0 +1,16 @@
+[
+  { "id": "cnn", "url": "https://edition.cnn.com/", "kind": "news" },
+  { "id": "guardian", "url": "https://www.theguardian.com/international", "kind": "news" },
+  { "id": "bbc", "url": "https://www.bbc.com/news", "kind": "news" },
+  { "id": "dailymotion", "url": "https://www.dailymotion.com/video/xbxrp5y", "kind": "video", "video": true },
+  { "id": "twitch", "url": "https://www.twitch.tv/directory", "kind": "video" },
+  { "id": "youtube-embed", "url": "https://www.youtube.com/embed/jNQXAC9IVRw?autoplay=1&mute=1", "kind": "embed", "video": true },
+  { "id": "maps-embed", "url": "https://www.google.com/maps?q=Stockholm&output=embed", "kind": "embed" },
+  { "id": "ebay", "url": "https://www.ebay.com/", "kind": "shopping" },
+  { "id": "stripe-checkout", "url": "https://checkout.stripe.dev/preview", "kind": "checkout" },
+  { "id": "paypal-signin", "url": "https://www.paypal.com/signin", "kind": "login" },
+  { "id": "google-signin", "url": "https://accounts.google.com/", "kind": "login" },
+  { "id": "microsoft-signin", "url": "https://login.microsoftonline.com/", "kind": "login" },
+  { "id": "wikipedia", "url": "https://en.wikipedia.org/wiki/Ad_blocking", "kind": "reference" },
+  { "id": "reddit", "url": "https://www.reddit.com/r/chrome/", "kind": "social" }
+]

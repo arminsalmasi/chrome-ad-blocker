@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 jobs:
   check:
@@ -20,7 +21,7 @@ jobs:
         run: make test
       - name: Syntax & JSON checks
         run: make check
-      - name: Shipped rulesets match seed lists
+      - name: Shipped rulesets and site cosmetics match snapshots
         run: |
           make rules
-          git diff --exit-code rules/
+          git diff --exit-code rules/ content/cosmetic_sites/
