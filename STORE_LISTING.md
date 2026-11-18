@@ -19,13 +19,13 @@ Blocks ads, trackers and third-party cookies, hides ad slots, and stubs anti-adb
 ```text
 ShieldBlock blocks ads, trackers and third-party cookies. It has no accounts, no sign-up, and collects no data.
 
-Network blocking: ShieldBlock uses Chrome's built-in declarativeNetRequest engine to block requests to about 150,000 ad and tracking domains, built from curated seed lists, the StevenBlack hosts list, and AdGuard's list of CNAME-disguised trackers (tracking subdomains that pose as first-party).
+Network blocking: ShieldBlock uses Chrome's built-in declarativeNetRequest engine to block requests to about 219,000 ad and tracking domains, built from curated seed lists, the StevenBlack hosts list, EasyList and EasyPrivacy, and AdGuard's list of CNAME-disguised trackers (tracking subdomains that pose as first-party).
 
 Tracker blocking: A separate module blocks analytics, tag manager and social tracking requests, and provides stand-ins for tracker globals so pages that depend on them keep working.
 
 Cookie protection: Removes third-party cookies from subresource requests, so cross-site tracking cookies are not sent.
 
-Cosmetic filtering: Hides common ad containers on pages using injected CSS.
+Cosmetic filtering: Hides common ad containers on pages using injected CSS, and hides site-specific ad slots from EasyList on about 7,800 sites.
 
 Anti-adblock stubs: Provides harmless stand-ins for common ad-script globals, so anti-adblock checks do not break page flows.
 
@@ -37,7 +37,7 @@ Blocked count: The toolbar badge shows how many requests were blocked on the cur
 
 Privacy: ShieldBlock does not collect, transmit, or sell any data. It has no analytics, no remote servers and no remote code. Settings are stored only on your device and are removed when you uninstall.
 
-Open source: Code licensed under the MIT License. Blocklists from StevenBlack/hosts and AdGuard are used under their own licenses; see THIRD_PARTY_NOTICES.md in the repository. Source code and issue tracker: https://github.com/arminsalmasi/chrome-ad-blocker
+Open source: Code licensed under the MIT License. Blocklists from StevenBlack/hosts, AdGuard, EasyList and EasyPrivacy are used under their own licenses; see THIRD_PARTY_NOTICES.md in the repository. Source code and issue tracker: https://github.com/arminsalmasi/chrome-ad-blocker
 
 Privacy policy: https://github.com/arminsalmasi/chrome-ad-blocker/blob/main/PRIVACY.md
 ```
@@ -63,7 +63,7 @@ Required to block ad and tracker network requests and to strip third-party cooki
 
 scripting:
 ```text
-Required to register content scripts with chrome.scripting.registerContentScripts. Cosmetic CSS is injected to hide ad elements, and MAIN-world stub scripts are injected to keep pages working when a blocked tracker library is absent. Each script is registered only when its module is enabled, and is excluded on allowlisted sites.
+Required to register content scripts with chrome.scripting.registerContentScripts. Cosmetic CSS, and per-site hiding scripts for sites with EasyList ad-slot rules, are injected to hide ad elements, and MAIN-world stub scripts are injected to keep pages working when a blocked tracker library is absent. Each script is registered only when its module is enabled, and is excluded on allowlisted sites.
 ```
 
 storage:
@@ -119,7 +119,7 @@ Certifications to check (all three):
 
 ## Before submitting
 
-- [ ] Bump `version` in `manifest.json` (currently `1.3.1`); the store rejects a version that has already been published.
+- [ ] Bump `version` in `manifest.json` (currently `1.4.0`); the store rejects a version that has already been published.
 - [ ] Run `make test`, `make check`, and `make package`.
 - [ ] Unzip `dist/shieldblock-<version>.zip` and load it unpacked at `chrome://extensions` to smoke-test blocking, the popup, and the allowlist.
 - [ ] Confirm the privacy policy URL above resolves on the `main` branch.

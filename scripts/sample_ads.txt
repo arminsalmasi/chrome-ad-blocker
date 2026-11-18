@@ -48,3 +48,4 @@
 0.0.0.0 applovin.com
 0.0.0.0 ironsrc.com
 0.0.0.0 vungle.com
+0.0.0.0 oa.opera.com
