@@ -63,14 +63,30 @@
     return 0;
   };
 
-  const mockSlot = {
+  // SDK surfaces are large and keep growing (e.g. GPT's getConfig/setConfig,
+  // Prebid's getConfig). Any method we don't model explicitly resolves to a
+  // safe fallback instead of throwing "x is not a function".
+  const withFallback = (target, fallback) => new Proxy(target, {
+    get(obj, prop) {
+      if (prop in obj) return obj[prop];
+      if (typeof prop === "symbol" || prop === "then" || prop === "toJSON") return undefined;
+      return fallback;
+    }
+  });
+
+  const mockSlot = withFallback({
     addService: noopReturnThis,
     setTargeting: noopReturnThis,
     defineSizeMapping: noopReturnThis,
     setCollapseEmptyDiv: noopReturnThis,
-    clearTargeting: noopReturnThis
-  };
-  const mockPubAds = {
+    clearTargeting: noopReturnThis,
+    setConfig: noopReturnThis,
+    getTargeting: () => [],
+    getTargetingKeys: () => [],
+    getSlotElementId: () => "",
+    getAdUnitPath: () => ""
+  }, noopReturnThis);
+  const mockPubAds = withFallback({
     enableSingleRequest: noop,
     collapseEmptyDivs: noop,
     disableInitialLoad: noop,
@@ -78,35 +94,57 @@
     clearTargeting: noopReturnThis,
     refresh: noop,
     addEventListener: noopReturnThis,
-    getSlots: () => []
-  };
+    removeEventListener: noopReturnThis,
+    getSlots: () => [],
+    getTargeting: () => [],
+    getTargetingKeys: () => []
+  }, noopReturnThis);
 
-  window.googletag = window.googletag || {};
-  const pendingGptCmds = Array.isArray(window.googletag.cmd) ? window.googletag.cmd.slice() : [];
-  window.googletag.apiReady = true;
-  window.googletag.cmd = [];
-  window.googletag.cmd.push = (...fns) => { fns.forEach((fn) => safeAsync(fn)); return 0; };
-  window.googletag.pubads = () => mockPubAds;
-  window.googletag.defineSlot = () => mockSlot;
-  window.googletag.defineOutOfPageSlot = () => mockSlot;
-  window.googletag.enableServices = noop;
-  window.googletag.display = noop;
-  window.googletag.destroySlots = noop;
+  const gptBase = window.googletag || {};
+  const pendingGptCmds = Array.isArray(gptBase.cmd) ? gptBase.cmd.slice() : [];
+  Object.assign(gptBase, {
+    apiReady: true,
+    pubadsReady: true,
+    cmd: Object.assign([], { push: (...fns) => { fns.forEach((fn) => safeAsync(fn)); return 0; } }),
+    pubads: () => mockPubAds,
+    defineSlot: () => mockSlot,
+    defineOutOfPageSlot: () => mockSlot,
+    enableServices: noop,
+    display: noop,
+    destroySlots: () => true,
+    getConfig: () => ({}),
+    setConfig: noop
+  });
+  window.googletag = withFallback(gptBase, noop);
   pendingGptCmds.forEach((fn) => safeAsync(fn));
 
   // ==========================================
   // 3. Header bidding (Prebid & Amazon TAM)
   // ==========================================
-  window.pbjs = window.pbjs || {};
-  const pendingPbjs = Array.isArray(window.pbjs.que) ? window.pbjs.que.slice() : [];
-  window.pbjs.que = [];
-  window.pbjs.que.push = (...fns) => { fns.forEach((fn) => safeAsync(fn)); return 0; };
-  window.pbjs.requestBids = (opts) => {
-    if (opts && typeof opts.bidsBackHandler === "function") safeAsync(opts.bidsBackHandler, {});
-  };
-  window.pbjs.setConfig = noop;
-  window.pbjs.addAdUnits = noop;
-  window.pbjs.adUnits = [];
+  const pbjsBase = window.pbjs || {};
+  const pendingPbjs = Array.isArray(pbjsBase.que) ? pbjsBase.que.slice() : [];
+  Object.assign(pbjsBase, {
+    libLoaded: true,
+    version: "",
+    adUnits: [],
+    bidderSettings: {},
+    que: Object.assign([], { push: (...fns) => { fns.forEach((fn) => safeAsync(fn)); return 0; } }),
+    requestBids: (opts) => {
+      if (opts && typeof opts.bidsBackHandler === "function") safeAsync(opts.bidsBackHandler, {});
+    },
+    getConfig: (key) => (key === undefined ? {} : undefined),
+    setConfig: noop,
+    addAdUnits: noop,
+    removeAdUnit: noop,
+    getBidResponses: () => ({}),
+    getHighestCpmBids: () => [],
+    getAdserverTargeting: () => ({}),
+    getUserIds: () => ({}),
+    getEvents: () => [],
+    onEvent: noop,
+    offEvent: noop
+  });
+  window.pbjs = withFallback(pbjsBase, noop);
   pendingPbjs.forEach((fn) => safeAsync(fn));
 
   window.apstag = window.apstag || {

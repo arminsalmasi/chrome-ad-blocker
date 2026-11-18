@@ -75,6 +75,8 @@ class BuildRules(unittest.TestCase):
         self.assertEqual(rules[1]["condition"]["requestDomains"], ["c.com"])
         self.assertEqual(rules[0]["action"], {"type": "block"})
         self.assertNotIn("excludedRequestDomains", rules[0]["condition"])
+        # No resourceTypes: block every request type except main_frame.
+        self.assertNotIn("resourceTypes", rules[0]["condition"])
 
     def test_excluded_domains_attached(self):
         rules = build_dnr_rules(["a.com"], excluded=["ok.a.com"])

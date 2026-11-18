@@ -192,6 +192,12 @@ CI runs `test`, `check`, and `rules` on pushes to `main` and on pull requests, a
 
 ## Changelog
 
+### 1.3.1
+- Network rules now block every request type to listed domains except top-level navigation (previously `other`, font, and stylesheet requests, such as Google IMA's `pubads.g.doubleclick.net/.../ima` fetch, got through).
+- GPT (`googletag`) and Prebid (`pbjs`) stubs cover more of each API (`getConfig`, `setConfig`, targeting getters, events) and fall back to safe no-ops for anything else, fixing `getConfig is not a function` errors.
+- Cosmetic: hides empty ad rails such as `[data-ad-zone]`, `[id^="display_ads_"]`, and `AdColumn__*` containers.
+- Verified on dailymotion.com: page requests down ~89%, ad requests down from ~1,700 to 7 (all blocked), no pre-roll ads, no page errors.
+
 ### 1.3.0
 - Blocklists expanded to ~150,000 domains: StevenBlack/hosts (ads) and AdGuard's CNAME-disguised trackers (trackers), grouped into ~150 DNR rules via `requestDomains`, with reproducible gzipped snapshots in `scripts/lists/`.
 - Compiler: `--exclude` never-block list, `--dump-domains` snapshots, subdomain collapsing.

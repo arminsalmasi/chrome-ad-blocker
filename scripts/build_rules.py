@@ -32,7 +32,6 @@ SAFE_ABP_OPTIONS = {"all", "important"}
 
 DNR_MAX_RULES_PER_RULESET = 30000
 DEFAULT_DOMAINS_PER_RULE = 1000
-DEFAULT_RESOURCE_TYPES = ["script", "image", "xmlhttprequest", "sub_frame", "ping", "media", "websocket"]
 
 IGNORED_HOSTS = {
     "localhost", "localhost.localdomain", "broadcasthost",
@@ -151,13 +150,14 @@ def build_dnr_rules(
     with a single large list; grouping keeps ~100k domains to ~100 rules.
     requestDomains matches the domain and its subdomains, like "||domain^".
     """
-    resource_types = resource_types or DEFAULT_RESOURCE_TYPES
     rules = []
     for offset in range(0, len(domains), domains_per_rule):
-        condition = {
-            "requestDomains": domains[offset:offset + domains_per_rule],
-            "resourceTypes": resource_types,
-        }
+        condition = {"requestDomains": domains[offset:offset + domains_per_rule]}
+        # Omitting resourceTypes matches every type except main_frame, so
+        # "other"/font/stylesheet requests to ad domains are blocked too, while
+        # visiting a listed domain directly still works.
+        if resource_types:
+            condition["resourceTypes"] = resource_types
         if excluded:
             condition["excludedRequestDomains"] = excluded
         rules.append({

@@ -1007,15 +1007,6 @@
         "a9v8.cn",
         "aa-metrics.aircard.jp",
         "aa-metrics.airpayment.jp"
-      ],
-      "resourceTypes": [
-        "script",
-        "image",
-        "xmlhttprequest",
-        "sub_frame",
-        "ping",
-        "media",
-        "websocket"
       ]
     }
   },
@@ -2027,15 +2018,6 @@
         "ade.clmbtech.com",
         "ade.wooboo.com.cn",
         "adebooks.fr"
-      ],
-      "resourceTypes": [
-        "script",
-        "image",
-        "xmlhttprequest",
-        "sub_frame",
-        "ping",
-        "media",
-        "websocket"
       ]
     }
   },
@@ -3047,15 +3029,6 @@
         "ads.networksolutions.com",
         "ads.networkwcs.net",
         "ads.networldmedia.net"
-      ],
-      "resourceTypes": [
-        "script",
-        "image",
-        "xmlhttprequest",
-        "sub_frame",
-        "ping",
-        "media",
-        "websocket"
       ]
     }
   },
@@ -4067,15 +4040,6 @@
         "adtag.sympatico.ca",
         "adtagj.portal-factory.com",
         "adtago.s3.amazonaws.com"
-      ],
-      "resourceTypes": [
-        "script",
-        "image",
-        "xmlhttprequest",
-        "sub_frame",
-        "ping",
-        "media",
-        "websocket"
       ]
     }
   },
@@ -5087,15 +5051,6 @@
         "alexdent.waw.pl",
         "alexianer-service.de",
         "alexine.net"
-      ],
-      "resourceTypes": [
-        "script",
-        "image",
-        "xmlhttprequest",
-        "sub_frame",
-        "ping",
-        "media",
-        "websocket"
       ]
     }
   },
@@ -6107,15 +6062,6 @@
         "api8.agilone.com",
         "apia.headlines.pw",
         "apiadapter.ad5track.com"
-      ],
-      "resourceTypes": [
-        "script",
-        "image",
-        "xmlhttprequest",
-        "sub_frame",
-        "ping",
-        "media",
-        "websocket"
       ]
     }
   },
@@ -7127,15 +7073,6 @@
         "banman.isoftmarketing.com",
         "bannanarepublic.com",
         "bannedfromserv.top"
-      ],
-      "resourceTypes": [
-        "script",
-        "image",
-        "xmlhttprequest",
-        "sub_frame",
-        "ping",
-        "media",
-        "websocket"
       ]
     }
   },
@@ -8147,15 +8084,6 @@
         "boralmedi.com",
         "bordofundivo.com",
         "borealamasserie.net"
-      ],
-      "resourceTypes": [
-        "script",
-        "image",
-        "xmlhttprequest",
-        "sub_frame",
-        "ping",
-        "media",
-        "websocket"
       ]
     }
   },
@@ -9167,15 +9095,6 @@
         "cbcnewsd.top",
         "cbola-ads-1-t3.us-east-1.elasticbeanstalk.com",
         "cbola-analytics-c5-6.us-east-1.elasticbeanstalk.com"
-      ],
-      "resourceTypes": [
-        "script",
-        "image",
-        "xmlhttprequest",
-        "sub_frame",
-        "ping",
-        "media",
-        "websocket"
       ]
     }
   },
@@ -10187,15 +10106,6 @@
         "clickyab.com",
         "clickz.com",
         "client-analytics.braintreegateway.com"
-      ],
-      "resourceTypes": [
-        "script",
-        "image",
-        "xmlhttprequest",
-        "sub_frame",
-        "ping",
-        "media",
-        "websocket"
       ]
     }
   },
@@ -11207,15 +11117,6 @@
         "credissarealty.com",
         "credit-card-application.now-cash.com",
         "credit-cards.shengen.ru"
-      ],
-      "resourceTypes": [
-        "script",
-        "image",
-        "xmlhttprequest",
-        "sub_frame",
-        "ping",
-        "media",
-        "websocket"
       ]
     }
   },
@@ -12227,15 +12128,6 @@
         "digitru.st",
         "dignishub.digital",
         "dignispeak.digital"
-      ],
-      "resourceTypes": [
-        "script",
-        "image",
-        "xmlhttprequest",
-        "sub_frame",
-        "ping",
-        "media",
-        "websocket"
       ]
     }
   },
@@ -13247,15 +13139,6 @@
         "elcantonartesano.com",
         "elcap.pl",
         "elcorral-gift.com"
-      ],
-      "resourceTypes": [
-        "script",
-        "image",
-        "xmlhttprequest",
-        "sub_frame",
-        "ping",
-        "media",
-        "websocket"
       ]
     }
   },
@@ -14267,15 +14150,6 @@
         "fasttrackglobaltrade.com",
         "fastway-pay.ocband.org",
         "fastwebcounter.com"
-      ],
-      "resourceTypes": [
-        "script",
-        "image",
-        "xmlhttprequest",
-        "sub_frame",
-        "ping",
-        "media",
-        "websocket"
       ]
     }
   },
@@ -15287,15 +15161,6 @@
         "finzy5-non26.sbs",
         "finzy5-porro28.sbs",
         "finzy5-possimus43.sbs"
-      ],
-      "resourceTypes": [
-        "script",
-        "image",
-        "xmlhttprequest",
-        "sub_frame",
-        "ping",
-        "media",
-        "websocket"
       ]
     }
   },
@@ -16307,15 +16172,6 @@
         "gasdtredjacj.lovable.app",
         "gaseeta.lovable.app",
         "gastrindis.store"
-      ],
-      "resourceTypes": [
-        "script",
-        "image",
-        "xmlhttprequest",
-        "sub_frame",
-        "ping",
-        "media",
-        "websocket"
       ]
     }
   },
@@ -17327,15 +17183,6 @@
         "hackerbot.net",
         "hackerz.ir",
         "hacking.mysteria.cz"
-      ],
-      "resourceTypes": [
-        "script",
-        "image",
-        "xmlhttprequest",
-        "sub_frame",
-        "ping",
-        "media",
-        "websocket"
       ]
     }
   },
@@ -18347,15 +18194,6 @@
         "ifa.slutloadlive.com",
         "ifa.streamateaccess.com",
         "ifa.tnaflixlive.com"
-      ],
-      "resourceTypes": [
-        "script",
-        "image",
-        "xmlhttprequest",
-        "sub_frame",
-        "ping",
-        "media",
-        "websocket"
       ]
     }
   },
@@ -19367,15 +19205,6 @@
         "jasnor.shop",
         "jasnydetal.com",
         "jasperrcorporation.com"
-      ],
-      "resourceTypes": [
-        "script",
-        "image",
-        "xmlhttprequest",
-        "sub_frame",
-        "ping",
-        "media",
-        "websocket"
       ]
     }
   },
@@ -20387,15 +20216,6 @@
         "laatribune.fr",
         "labanquepoqtale.fr",
         "labanqueposttale.fr"
-      ],
-      "resourceTypes": [
-        "script",
-        "image",
-        "xmlhttprequest",
-        "sub_frame",
-        "ping",
-        "media",
-        "websocket"
       ]
     }
   },
@@ -21407,15 +21227,6 @@
         "log.giaoduc.net.vn",
         "log.giaoducthoidai.vn",
         "log.go.com"
-      ],
-      "resourceTypes": [
-        "script",
-        "image",
-        "xmlhttprequest",
-        "sub_frame",
-        "ping",
-        "media",
-        "websocket"
       ]
     }
   },
@@ -22427,15 +22238,6 @@
         "media2.travelzoo.com",
         "media2021.videostrip.com",
         "media3.popmarker.com"
-      ],
-      "resourceTypes": [
-        "script",
-        "image",
-        "xmlhttprequest",
-        "sub_frame",
-        "ping",
-        "media",
-        "websocket"
       ]
     }
   },
@@ -23447,15 +23249,6 @@
         "mreco0.jp",
         "mrgt09.gertsakiln.shop",
         "mrmaqstx.shop"
-      ],
-      "resourceTypes": [
-        "script",
-        "image",
-        "xmlhttprequest",
-        "sub_frame",
-        "ping",
-        "media",
-        "websocket"
       ]
     }
   },
@@ -24467,15 +24260,6 @@
         "nice-pond-00b9d0903.6.azurestaticapps.net",
         "nicebonusbooi7.com",
         "nicemartlabs.digital"
-      ],
-      "resourceTypes": [
-        "script",
-        "image",
-        "xmlhttprequest",
-        "sub_frame",
-        "ping",
-        "media",
-        "websocket"
       ]
     }
   },
@@ -25487,15 +25271,6 @@
         "omnicleaningservices.com",
         "omnijay.com",
         "omniluxledpolska.com"
-      ],
-      "resourceTypes": [
-        "script",
-        "image",
-        "xmlhttprequest",
-        "sub_frame",
-        "ping",
-        "media",
-        "websocket"
       ]
     }
   },
@@ -26507,15 +26282,6 @@
         "performancing.com",
         "performer.za.com",
         "perfoscing.store"
-      ],
-      "resourceTypes": [
-        "script",
-        "image",
-        "xmlhttprequest",
-        "sub_frame",
-        "ping",
-        "media",
-        "websocket"
       ]
     }
   },
@@ -27527,15 +27293,6 @@
         "polyad.net",
         "polyhsempi.store",
         "polymorphicads.jp"
-      ],
-      "resourceTypes": [
-        "script",
-        "image",
-        "xmlhttprequest",
-        "sub_frame",
-        "ping",
-        "media",
-        "websocket"
       ]
     }
   },
@@ -28547,15 +28304,6 @@
         "qpfhd.com",
         "qps.cint.com",
         "qq8.ag"
-      ],
-      "resourceTypes": [
-        "script",
-        "image",
-        "xmlhttprequest",
-        "sub_frame",
-        "ping",
-        "media",
-        "websocket"
       ]
     }
   },
@@ -29567,15 +29315,6 @@
         "rinfopyrul.store",
         "rinfrbronc.store",
         "ringagrava.store"
-      ],
-      "resourceTypes": [
-        "script",
-        "image",
-        "xmlhttprequest",
-        "sub_frame",
-        "ping",
-        "media",
-        "websocket"
       ]
     }
   },
@@ -30587,15 +30326,6 @@
         "sdkgw.us1.twilio.com",
         "sdkuaservice.optimove.net",
         "sdkv2.imaginationunwired.com"
-      ],
-      "resourceTypes": [
-        "script",
-        "image",
-        "xmlhttprequest",
-        "sub_frame",
-        "ping",
-        "media",
-        "websocket"
       ]
     }
   },
@@ -31607,15 +31337,6 @@
         "slowmac.tech",
         "slowmacfaster.trade",
         "slowmeridian.info"
-      ],
-      "resourceTypes": [
-        "script",
-        "image",
-        "xmlhttprequest",
-        "sub_frame",
-        "ping",
-        "media",
-        "websocket"
       ]
     }
   },
@@ -32627,15 +32348,6 @@
         "stabilisarc.com",
         "stabilispeak.digital",
         "stabilisvault.com"
-      ],
-      "resourceTypes": [
-        "script",
-        "image",
-        "xmlhttprequest",
-        "sub_frame",
-        "ping",
-        "media",
-        "websocket"
       ]
     }
   },
@@ -33647,15 +33359,6 @@
         "synonymoussticks.com",
         "syntari-ai.net",
         "syntexai.org"
-      ],
-      "resourceTypes": [
-        "script",
-        "image",
-        "xmlhttprequest",
-        "sub_frame",
-        "ping",
-        "media",
-        "websocket"
       ]
     }
   },
@@ -34667,15 +34370,6 @@
         "ticketpayfee.com",
         "tickets-m.top",
         "ticketspy.fr"
-      ],
-      "resourceTypes": [
-        "script",
-        "image",
-        "xmlhttprequest",
-        "sub_frame",
-        "ping",
-        "media",
-        "websocket"
       ]
     }
   },
@@ -35687,15 +35381,6 @@
         "trifococon.store",
         "triggerinstalls.com",
         "triggers.wfxtriggers.com"
-      ],
-      "resourceTypes": [
-        "script",
-        "image",
-        "xmlhttprequest",
-        "sub_frame",
-        "ping",
-        "media",
-        "websocket"
       ]
     }
   },
@@ -36707,15 +36392,6 @@
         "v8engine.pinsightmedia.com",
         "v8push.pinsightmedia.com",
         "v9banners-com.cdn.ampproject.org"
-      ],
-      "resourceTypes": [
-        "script",
-        "image",
-        "xmlhttprequest",
-        "sub_frame",
-        "ping",
-        "media",
-        "websocket"
       ]
     }
   },
@@ -37727,15 +37403,6 @@
         "watereaton.net",
         "wateristian.com",
         "waterperry.net"
-      ],
-      "resourceTypes": [
-        "script",
-        "image",
-        "xmlhttprequest",
-        "sub_frame",
-        "ping",
-        "media",
-        "websocket"
       ]
     }
   },
@@ -38747,15 +38414,6 @@
         "www.blazesemipvp.com",
         "www.blockadsnot.com",
         "www.blogcatalog.com"
-      ],
-      "resourceTypes": [
-        "script",
-        "image",
-        "xmlhttprequest",
-        "sub_frame",
-        "ping",
-        "media",
-        "websocket"
       ]
     }
   },
@@ -39767,15 +39425,6 @@
         "www.permissionresearch.com",
         "www.persianstat.com",
         "www.perso.ch"
-      ],
-      "resourceTypes": [
-        "script",
-        "image",
-        "xmlhttprequest",
-        "sub_frame",
-        "ping",
-        "media",
-        "websocket"
       ]
     }
   },
@@ -40787,15 +40436,6 @@
         "yankee-candle.shop",
         "yankeepl.top",
         "yanteaviation.com"
-      ],
-      "resourceTypes": [
-        "script",
-        "image",
-        "xmlhttprequest",
-        "sub_frame",
-        "ping",
-        "media",
-        "websocket"
       ]
     }
   },
@@ -41451,15 +41091,6 @@
         "zzrx.info",
         "zzvn.info",
         "zzz.onion.pet"
-      ],
-      "resourceTypes": [
-        "script",
-        "image",
-        "xmlhttprequest",
-        "sub_frame",
-        "ping",
-        "media",
-        "websocket"
       ]
     }
   }

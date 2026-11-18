@@ -119,7 +119,7 @@ Certifications to check (all three):
 
 ## Before submitting
 
-- [ ] Bump `version` in `manifest.json` (currently `1.3.0`); the store rejects a version that has already been published.
+- [ ] Bump `version` in `manifest.json` (currently `1.3.1`); the store rejects a version that has already been published.
 - [ ] Run `make test`, `make check`, and `make package`.
 - [ ] Unzip `dist/shieldblock-<version>.zip` and load it unpacked at `chrome://extensions` to smoke-test blocking, the popup, and the allowlist.
 - [ ] Confirm the privacy policy URL above resolves on the `main` branch.
