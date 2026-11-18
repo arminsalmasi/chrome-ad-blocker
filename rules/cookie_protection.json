@@ -21,15 +21,35 @@
       "domainType": "thirdParty",
       "excludedRequestDomains": [
         "accounts.google.com",
-        "login.microsoftonline.com",
-        "appleid.apple.com",
-        "github.com",
+        "accounts.youtube.com",
         "api.stripe.com",
+        "appleid.apple.com",
+        "auth0.com",
+        "challenges.cloudflare.com",
+        "checkout.stripe.com",
+        "github.com",
+        "hcaptcha.com",
+        "hooks.stripe.com",
         "js.stripe.com",
+        "login.live.com",
+        "login.microsoft.com",
+        "login.microsoftonline.com",
+        "okta.com",
         "paypal.com",
-        "paypalobjects.com"
+        "paypalobjects.com",
+        "recaptcha.net"
+      ],
+      "resourceTypes": [
+        "script",
+        "image",
+        "xmlhttprequest",
+        "ping",
+        "media",
+        "font",
+        "stylesheet",
+        "websocket",
+        "other"
       ]
     }
   }
 ]
-

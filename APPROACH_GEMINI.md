@@ -16,7 +16,7 @@ Gemini's architecture focuses on **high-precision network filtering** powered by
 
 ## Starter Domains & Upstream Data Sources
 
-### High-Impact Starter Domains (`scripts/sample_hosts.txt`)
+### High-Impact Starter Domains (`scripts/sample_ads.txt`, `scripts/sample_trackers.txt`, `scripts/sample_cname.txt`)
 To provide immediate baseline protection without external downloads, the starter seed list targets major programmatic ad exchanges, native ad widgets, and session-replay/analytics vendors:
 
 - **Ad Networks & Exchanges**: `doubleclick.net`, `googlesyndication.com`, `googleadservices.com`, `adnxs.com`, `rubiconproject.com`, `pubmatic.com`, `openx.net`, `criteo.com`, `amazon-adsystem.com`, `taboola.com`, `outbrain.com`, `mgid.com`, `revcontent.com`.

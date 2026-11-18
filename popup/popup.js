@@ -1,82 +1,91 @@
+// Popup writes settings to storage.local; background.js reacts to the change
+// and reconciles rulesets, allowlist rules and content scripts.
+
+const BLOCKING_RULESETS = new Set(["ruleset_ads", "ruleset_trackers"]);
+
+// Allowlist entries cover the domain and its subdomains (matching DNR
+// requestDomains). "www." is dropped so allowlisting www.site.com covers site.com.
+const normalizeHost = (host) => host.toLowerCase().replace(/^www\./, "");
+const coversHost = (entry, host) => host === entry || host.endsWith("." + entry);
+
+// Same validation as background.js: hosts it would drop (e.g. IPv6 "[::1]")
+// can't be allowlisted, so the toggle is disabled for them.
+const IPV4_REGEX = /^(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$/;
+const HOSTNAME_REGEX = /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)*(?=[a-z0-9-]*[a-z])[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
+const isAllowlistable = (host) => IPV4_REGEX.test(host) || HOSTNAME_REGEX.test(host);
+
 document.addEventListener("DOMContentLoaded", async () => {
-  const masterToggle = document.getElementById("master-toggle");
-  const currentDomainEl = document.getElementById("current-domain");
-  const siteAllowToggle = document.getElementById("site-allow-toggle");
-  const siteStatusEl = document.getElementById("site-status");
-  const blockedCountEl = document.getElementById("blocked-count");
+  const $ = (id) => document.getElementById(id);
+  const masterToggle = $("master-toggle");
+  const currentDomainEl = $("current-domain");
+  const siteAllowToggle = $("site-allow-toggle");
+  const siteStatusEl = $("site-status");
+  const blockedCountEl = $("blocked-count");
+  const reloadBtn = $("reload-tab");
+  const modules = {
+    ruleset_ads: $("module-ads"),
+    ruleset_trackers: $("module-trackers"),
+    ruleset_cookies: $("module-cookies"),
+    cosmeticEnabled: $("module-cosmetic")
+  };
 
-  const moduleAds = document.getElementById("module-ads");
-  const moduleTrackers = document.getElementById("module-trackers");
-  const moduleCookies = document.getElementById("module-cookies");
-  const moduleCosmetic = document.getElementById("module-cosmetic");
-  const reloadBtn = document.getElementById("reload-tab");
+  $("version").textContent = `v${chrome.runtime.getManifest().version} (MV3)`;
 
-  // Get active tab info
   let activeTab = null;
   let currentHost = "";
-
   try {
-    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-    activeTab = tabs && tabs[0] ? tabs[0] : null;
+    [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (activeTab && activeTab.url) {
       const url = new URL(activeTab.url);
-      if (url.protocol.startsWith("http")) {
-        currentHost = url.hostname;
-      }
+      if (url.protocol === "http:" || url.protocol === "https:") currentHost = url.hostname;
     }
-  } catch (e) {
+  } catch (_) {
     currentHost = "";
   }
-
   currentDomainEl.textContent = currentHost || "Internal / Chrome page";
 
-  // Load storage state
   const data = await chrome.storage.local.get([
     "masterEnabled",
-    "ruleset_ads",
-    "ruleset_trackers",
-    "ruleset_cookies",
-    "cosmeticEnabled",
+    ...Object.keys(modules),
     "allowlistedDomains"
   ]);
 
-  const master = data.masterEnabled !== false;
-  const ads = data.ruleset_ads !== false;
-  const trackers = data.ruleset_trackers !== false;
-  const cookies = data.ruleset_cookies !== false;
-  const cosmetic = data.cosmeticEnabled !== false;
+  masterToggle.checked = data.masterEnabled !== false;
+  for (const [key, input] of Object.entries(modules)) input.checked = data[key] !== false;
   const allowlist = data.allowlistedDomains || [];
-  const isAllowlisted = currentHost ? allowlist.includes(currentHost) : false;
+  const canAllowlist = Boolean(currentHost) && isAllowlistable(currentHost);
+  const coveringEntry = canAllowlist ? allowlist.find((d) => coversHost(d, currentHost)) : undefined;
+  siteAllowToggle.checked = Boolean(coveringEntry);
 
-  masterToggle.checked = master;
-  moduleAds.checked = ads;
-  moduleTrackers.checked = trackers;
-  moduleCookies.checked = cookies;
-  moduleCosmetic.checked = cosmetic;
-  siteAllowToggle.checked = isAllowlisted;
+  updateSiteStatus(Boolean(coveringEntry), coveringEntry);
+  updateModuleAvailability(masterToggle.checked);
+  loadBlockedCount();
 
-  updateSiteStatus(isAllowlisted);
-  updateModuleAvailability(master);
-
-  // Fetch blocked stats
-  if (activeTab && activeTab.id) {
-    chrome.runtime.sendMessage({ type: "GET_STATS", tabId: activeTab.id }, (response) => {
-      if (chrome.runtime.lastError) return;
-      if (response && typeof response.count === "number") {
-        blockedCountEl.textContent = response.count;
-      }
-    });
+  async function loadBlockedCount() {
+    if (!activeTab || !activeTab.id || !currentHost) return;
+    try {
+      // Opening the popup grants activeTab for this tab, which is what
+      // getMatchedRules requires (no declarativeNetRequestFeedback needed).
+      const { rulesMatchedInfo } = await chrome.declarativeNetRequest.getMatchedRules({ tabId: activeTab.id });
+      const blocked = rulesMatchedInfo.filter((m) => BLOCKING_RULESETS.has(m.rule.rulesetId)).length;
+      blockedCountEl.textContent = String(blocked);
+    } catch (_) {
+      blockedCountEl.textContent = "–";
+    }
   }
 
-  function updateSiteStatus(allowed) {
-    if (!currentHost) {
+  function updateSiteStatus(allowed, entry) {
+    siteAllowToggle.title = "Allowlist this site and its subdomains";
+    if (!canAllowlist) {
       siteStatusEl.textContent = "N/A";
       siteStatusEl.className = "status-tag";
-      return;
-    }
-    if (allowed) {
-      siteStatusEl.textContent = "Allowlisted";
+    } else if (allowed) {
+      // Turning this off removes the covering entry, which re-protects every
+      // subdomain under it — say so when that entry is a parent domain.
+      const viaParent = entry && entry !== normalizeHost(currentHost);
+      siteStatusEl.textContent = viaParent ? `Allowlisted via ${entry}` : "Allowlisted";
       siteStatusEl.className = "status-tag whitelisted";
+      if (viaParent) siteAllowToggle.title = `Turning off removes the allowlist entry for ${entry} and all its subdomains`;
     } else {
       siteStatusEl.textContent = "Protected";
       siteStatusEl.className = "status-tag";
@@ -84,61 +93,36 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function updateModuleAvailability(isMasterOn) {
-    [moduleAds, moduleTrackers, moduleCookies, moduleCosmetic].forEach((input) => {
-      input.disabled = !isMasterOn;
-    });
-    siteAllowToggle.disabled = !isMasterOn || !currentHost;
+    Object.values(modules).forEach((input) => { input.disabled = !isMasterOn; });
+    siteAllowToggle.disabled = !isMasterOn || !canAllowlist;
   }
 
-  // Master switch handler
   masterToggle.addEventListener("change", async () => {
-    const enabled = masterToggle.checked;
-    await chrome.storage.local.set({ masterEnabled: enabled });
-    updateModuleAvailability(enabled);
-    chrome.runtime.sendMessage({ type: "SYNC_RULESETS" }, () => {
-      if (chrome.runtime.lastError) {}
-    });
+    await chrome.storage.local.set({ masterEnabled: masterToggle.checked });
+    updateModuleAvailability(masterToggle.checked);
   });
 
-  // Per-site allowlist switch handler
   siteAllowToggle.addEventListener("change", async () => {
-    if (!currentHost) return;
+    if (!canAllowlist) return;
     const allow = siteAllowToggle.checked;
     const stored = await chrome.storage.local.get(["allowlistedDomains"]);
     let list = stored.allowlistedDomains || [];
 
     if (allow) {
-      if (!list.includes(currentHost)) list.push(currentHost);
+      if (!list.some((d) => coversHost(d, currentHost))) list.push(normalizeHost(currentHost));
     } else {
-      list = list.filter((d) => d !== currentHost);
+      // Remove every entry that covers this host (e.g. a parent domain).
+      list = list.filter((d) => !coversHost(d, currentHost));
     }
 
     await chrome.storage.local.set({ allowlistedDomains: list });
-    updateSiteStatus(allow);
-    chrome.runtime.sendMessage({ type: "UPDATE_ALLOWLIST" }, () => {
-      if (chrome.runtime.lastError) {}
-    });
+    updateSiteStatus(allow, list.find((d) => coversHost(d, currentHost)));
   });
 
-  // Granular module handlers
-  async function bindModuleToggle(element, storageKey) {
-    element.addEventListener("change", async () => {
-      await chrome.storage.local.set({ [storageKey]: element.checked });
-      chrome.runtime.sendMessage({ type: "SYNC_RULESETS" }, () => {
-        if (chrome.runtime.lastError) {}
-      });
-    });
+  for (const [key, input] of Object.entries(modules)) {
+    input.addEventListener("change", () => chrome.storage.local.set({ [key]: input.checked }));
   }
 
-  bindModuleToggle(moduleAds, "ruleset_ads");
-  bindModuleToggle(moduleTrackers, "ruleset_trackers");
-  bindModuleToggle(moduleCookies, "ruleset_cookies");
-
-  moduleCosmetic.addEventListener("change", async () => {
-    await chrome.storage.local.set({ cosmeticEnabled: moduleCosmetic.checked });
-  });
-
-  // Reload current tab
   reloadBtn.addEventListener("click", () => {
     if (activeTab && activeTab.id) {
       chrome.tabs.reload(activeTab.id);

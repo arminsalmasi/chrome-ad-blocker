@@ -12,7 +12,7 @@
         <div class="shield-icon">🛡️</div>
         <div class="title-area">
           <h1>ShieldBlock</h1>
-          <span class="version">v1.0 (MV3)</span>
+          <span class="version" id="version"></span>
         </div>
       </div>
       <label class="switch master-switch" title="Master Power Toggle">
@@ -67,7 +67,7 @@
       <div class="module-row">
         <div class="module-text">
           <span class="module-name">Strip 3rd-Party Cookies</span>
-          <span class="module-desc">Removes cross-site Cookie & Set-Cookie headers</span>
+          <span class="module-desc">Strips cookies from cross-site subresources (not embeds)</span>
         </div>
         <label class="switch">
           <input type="checkbox" id="module-cookies">

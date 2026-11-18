@@ -16,8 +16,18 @@ import urllib.request
 import urllib.error
 
 DOMAIN_REGEX = re.compile(
-    r'^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$'
+    r'^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:[a-z]{2,63}|xn--[a-z0-9-]{1,59})$'
 )
+
+# ABP/uBO cosmetic, scriptlet and HTML-filter separators. Lines containing these
+# hide elements on a site; they must never become network block rules.
+COSMETIC_MARKERS = ("##", "#@#", "#?#", "#$#", "#%#", "#@$#", "#@?#", "$$", "$@$")
+
+# Only options that don't narrow the rule may be dropped. "$third-party" is NOT
+# safe: emitting "||domain^" without it would also block first-party loads.
+SAFE_ABP_OPTIONS = {"all", "important"}
+
+DNR_MAX_RULES_PER_RULESET = 30000
 
 IGNORED_HOSTS = {
     "localhost", "localhost.localdomain", "broadcasthost",
@@ -34,31 +44,52 @@ POPULAR_UPSTREAM_LISTS = {
 
 
 def clean_domain(raw_line: str) -> str | None:
+    """Return a bare domain if the line blocks an entire domain, else None.
+
+    Accepts hosts entries ("0.0.0.0 example.com"), plain domains, and ABP
+    domain anchors ("||example.com^", optionally with safe options). Rejects
+    anything narrower than a full domain (paths, cosmetic filters, regexes,
+    exceptions, type-restricted options) so it is never widened into a
+    site-wide block.
+    """
     line = raw_line.strip()
-    if not line or line.startswith("#") or line.startswith("!"):
+    if not line or line.startswith(("#", "!", "[", "@@")):
+        return None
+    if any(marker in line for marker in COSMETIC_MARKERS):
         return None
 
-    # Handle hosts file format (0.0.0.0 domain or 127.0.0.1 domain)
+    # Drop trailing inline comments ("example.com # note").
+    line = re.split(r"\s+#", line, maxsplit=1)[0].strip()
+
     parts = line.split()
-    if len(parts) >= 2 and parts[0] in ("0.0.0.0", "127.0.0.1"):
-        candidate = parts[1].strip()
+    if len(parts) >= 2 and parts[0] in ("0.0.0.0", "127.0.0.1", "::", "::1"):
+        candidate = parts[1]
+    elif len(parts) == 1:
+        candidate = parts[0]
     else:
-        candidate = parts[0].strip()
+        return None
 
-    # Strip ABP modifiers like $third-party,image
+    is_abp = candidate.startswith("||")
     if "$" in candidate:
-        candidate = candidate.split("$")[0]
+        candidate, options = candidate.split("$", 1)
+        opts = {o.strip().lower() for o in options.split(",") if o.strip()}
+        if not opts <= SAFE_ABP_OPTIONS:
+            return None
 
-    # Handle ABP style ||domain^
-    if candidate.startswith("||"):
+    if is_abp:
         candidate = candidate[2:]
-    if candidate.endswith("^"):
-        candidate = candidate[:-1]
+        if candidate.endswith("^"):
+            candidate = candidate[:-1]
+        elif candidate.endswith("^|"):
+            candidate = candidate[:-2]
 
-    # Strip port, path, anchor or trailing comments
-    candidate = candidate.split("#")[0].split(":")[0].split("/")[0].strip().lower()
+    # Anything left that narrows the match (path, wildcard, regex, port,
+    # separator) means this rule is not a whole-domain block.
+    if any(ch in candidate for ch in "/*^|:?=&%"):
+        return None
 
-    if candidate in IGNORED_HOSTS or not candidate:
+    candidate = candidate.strip().lower().rstrip(".")
+    if not candidate or candidate in IGNORED_HOSTS:
         return None
 
     if DOMAIN_REGEX.match(candidate):
@@ -89,7 +120,7 @@ def fetch_or_read_file(source: str) -> list[str]:
         raise FileNotFoundError(f"Input file not found: {source}")
 
 
-def build_dnr_rules(domains: list[str], start_id: int = 1, resource_types: list[str] = None) -> list[dict]:
+def build_dnr_rules(domains: list[str], start_id: int = 1, resource_types: list[str] | None = None) -> list[dict]:
     if resource_types is None:
         resource_types = ["script", "image", "xmlhttprequest", "sub_frame", "ping", "media", "websocket"]
 
@@ -115,10 +146,12 @@ def main():
     parser.add_argument("--prefix", "-p", default="blocklist", help="Filename prefix for generated rules")
     args = parser.parse_args()
 
-    if args.max_rules_per_file <= 0:
-        parser.error("--max-rules-per-file must be greater than 0")
+    if not 0 < args.max_rules_per_file <= DNR_MAX_RULES_PER_RULESET:
+        parser.error(f"--max-rules-per-file must be between 1 and {DNR_MAX_RULES_PER_RULESET}")
 
-    sources = args.input or ["scripts/sample_hosts.txt"]
+    if not args.input:
+        parser.error("at least one --input is required")
+    sources = args.input
     all_domains = set()
 
     for src in sources:
@@ -148,6 +181,7 @@ def main():
     if not chunks:
         chunks = [[]]
 
+    written = []
     for index, chunk in enumerate(chunks, start=1):
         filename = f"{args.prefix}_{index}.json" if len(chunks) > 1 else f"{args.prefix}.json"
         out_path = os.path.join(args.output_dir, filename)
@@ -156,8 +190,16 @@ def main():
 
         with open(out_path, "w", encoding="utf-8") as f:
             json.dump(rules, f, indent=2)
+            f.write("\n")
 
+        written.append(out_path)
         print(f"Wrote {len(rules)} rules to {out_path}")
+
+    # New ruleset files are inert until declared in manifest.json.
+    print("\nEnsure these entries exist in manifest.json -> declarative_net_request.rule_resources:")
+    for path in written:
+        ruleset_id = "ruleset_" + os.path.splitext(os.path.basename(path))[0]
+        print(json.dumps({"id": ruleset_id, "enabled": True, "path": path.replace(os.sep, "/")}))
 
 
 if __name__ == "__main__":

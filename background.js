@@ -1,180 +1,176 @@
-// Service Worker for ShieldBlock
+// ShieldBlock service worker.
+//
+// storage.local is the single source of truth. Every relevant change runs one
+// serialized sync that reconciles:
+//   1. static DNR rulesets (enabled/disabled)
+//   2. the dynamic allowlist rule
+//   3. registered content scripts (cosmetic CSS + MAIN-world scriptlets)
 
-const tabBlockCounts = new Map();
+const STATIC_RULESETS = ["ruleset_ads", "ruleset_trackers", "ruleset_cookies"];
 
-// Helper to get or allocate rule ID for allowlisted domain
-async function getRuleIdForDomain(domain) {
-  const data = await chrome.storage.local.get(["allowlistRuleMap", "nextDynamicRuleId"]);
-  const map = data.allowlistRuleMap || {};
-  let nextId = data.nextDynamicRuleId || 10000;
+const DEFAULTS = {
+  masterEnabled: true,
+  ruleset_ads: true,
+  ruleset_trackers: true,
+  ruleset_cookies: true,
+  cosmeticEnabled: true,
+  allowlistedDomains: []
+};
+const SETTING_KEYS = Object.keys(DEFAULTS);
+const LEGACY_KEYS = ["allowlistRuleMap", "nextDynamicRuleId"];
 
-  if (map[domain]) {
-    return map[domain];
+const ALLOWLIST_RULE_ID = 1;
+const ALLOWLIST_PRIORITY = 100; // above every static rule (priority 1)
+
+const CONTENT_SCRIPT_IDS = {
+  cosmetic: "sb-cosmetic",
+  adStubs: "sb-ad-stubs",
+  trackerStubs: "sb-tracker-stubs"
+};
+const PAGE_MATCHES = ["http://*/*", "https://*/*"];
+
+// Keep in sync with popup/popup.js.
+const IPV4_REGEX = /^(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$/;
+// Last label must contain a letter (rejects "foo.123", "999.999.999.999").
+const HOSTNAME_REGEX = /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)*(?=[a-z0-9-]*[a-z])[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
+
+const isValidAllowlistEntry = (d) =>
+  typeof d === "string" && (IPV4_REGEX.test(d) || HOSTNAME_REGEX.test(d));
+
+// "*.example.com" in a match pattern covers example.com and all subdomains,
+// matching DNR requestDomains semantics. IPs cannot take a "*." prefix.
+const excludePatternFor = (d) => (IPV4_REGEX.test(d) ? `*://${d}/*` : `*://*.${d}/*`);
+
+async function loadSettings() {
+  const stored = await chrome.storage.local.get(SETTING_KEYS);
+  const settings = { ...DEFAULTS };
+  for (const key of SETTING_KEYS) {
+    if (stored[key] !== undefined) settings[key] = stored[key];
   }
-
-  const allocatedId = nextId++;
-  map[domain] = allocatedId;
-  await chrome.storage.local.set({ allowlistRuleMap: map, nextDynamicRuleId: nextId });
-  return allocatedId;
+  settings.allowlistedDomains = (settings.allowlistedDomains || []).filter(isValidAllowlistEntry);
+  return settings;
 }
 
-// Sync declarativeNetRequest static rulesets with stored settings
-async function syncRulesets() {
-  try {
-    const settings = await chrome.storage.local.get([
-      "masterEnabled",
-      "ruleset_ads",
-      "ruleset_trackers",
-      "ruleset_cookies"
-    ]);
+async function syncRulesets(s) {
+  const enableRulesetIds = [];
+  const disableRulesetIds = [];
+  for (const id of STATIC_RULESETS) {
+    (s.masterEnabled && s[id] ? enableRulesetIds : disableRulesetIds).push(id);
+  }
+  await chrome.declarativeNetRequest.updateEnabledRulesets({ enableRulesetIds, disableRulesetIds });
+}
 
-    const allRulesets = ["ruleset_ads", "ruleset_trackers", "ruleset_cookies"];
-    let enableIds = [];
-    let disableIds = [];
-
-    if (settings.masterEnabled === false) {
-      disableIds = allRulesets;
-    } else {
-      for (const id of allRulesets) {
-        if (settings[id] !== false) {
-          enableIds.push(id);
-        } else {
-          disableIds.push(id);
-        }
+async function syncAllowlist(s) {
+  const existing = await chrome.declarativeNetRequest.getDynamicRules();
+  const addRules = [];
+  if (s.masterEnabled && s.allowlistedDomains.length > 0) {
+    // allowAllRequests on the top frame exempts the whole frame tree
+    // (sub-resources and child frames) from block and modifyHeaders rules.
+    addRules.push({
+      id: ALLOWLIST_RULE_ID,
+      priority: ALLOWLIST_PRIORITY,
+      action: { type: "allowAllRequests" },
+      condition: {
+        requestDomains: s.allowlistedDomains,
+        resourceTypes: ["main_frame"]
       }
-    }
-
-    await chrome.declarativeNetRequest.updateEnabledRulesets({
-      enableRulesetIds: enableIds,
-      disableRulesetIds: disableIds
     });
-  } catch (err) {
-    console.error("Failed to sync static rulesets:", err);
   }
-}
-
-// Sync dynamic allowlist rules from storage
-async function syncDynamicAllowlist() {
-  try {
-    const data = await chrome.storage.local.get(["allowlistedDomains", "allowlistRuleMap"]);
-    const domains = data.allowlistedDomains || [];
-    const currentRules = await chrome.declarativeNetRequest.getDynamicRules();
-    const currentIds = currentRules.map((r) => r.id);
-
-    const rulesToAdd = [];
-    for (const domain of domains) {
-      const ruleId = await getRuleIdForDomain(domain);
-      rulesToAdd.push({
-        id: ruleId,
-        priority: 9999,
-        action: { type: "allowAllRequests" },
-        condition: {
-          requestDomains: [domain],
-          resourceTypes: ["main_frame"]
-        }
-      });
-      rulesToAdd.push({
-        id: ruleId + 500000,
-        priority: 9999,
-        action: { type: "allow" },
-        condition: {
-          initiatorDomains: [domain]
-        }
-      });
-    }
-
-    await chrome.declarativeNetRequest.updateDynamicRules({
-      removeRuleIds: currentIds,
-      addRules: rulesToAdd
-    });
-  } catch (err) {
-    console.error("Failed to sync dynamic allowlist:", err);
-  }
-}
-
-// Initialization on install and startup
-async function initializeExtension() {
-  const current = await chrome.storage.local.get([
-    "masterEnabled",
-    "ruleset_ads",
-    "ruleset_trackers",
-    "ruleset_cookies",
-    "cosmeticEnabled",
-    "allowlistedDomains",
-    "allowlistRuleMap",
-    "nextDynamicRuleId"
-  ]);
-
-  const defaults = {
-    masterEnabled: current.masterEnabled ?? true,
-    ruleset_ads: current.ruleset_ads ?? true,
-    ruleset_trackers: current.ruleset_trackers ?? true,
-    ruleset_cookies: current.ruleset_cookies ?? true,
-    cosmeticEnabled: current.cosmeticEnabled ?? true,
-    allowlistedDomains: current.allowlistedDomains ?? [],
-    allowlistRuleMap: current.allowlistRuleMap ?? {},
-    nextDynamicRuleId: current.nextDynamicRuleId ?? 10000
-  };
-
-  await chrome.storage.local.set(defaults);
-  await syncRulesets();
-  await syncDynamicAllowlist();
-}
-
-chrome.runtime.onInstalled.addListener(initializeExtension);
-chrome.runtime.onStartup.addListener(initializeExtension);
-
-// Track blocked rules per tab for badge display
-if (chrome.declarativeNetRequest?.onRuleMatchedDebug) {
-  chrome.declarativeNetRequest.onRuleMatchedDebug.addListener((info) => {
-    // Only count block actions from ads and trackers rulesets
-    const isBlockRuleset = info.rule?.rulesetId === "ruleset_ads" || info.rule?.rulesetId === "ruleset_trackers";
-    if (!isBlockRuleset) return;
-
-    const tabId = info.request?.tabId;
-    if (tabId && tabId > 0) {
-      const current = (tabBlockCounts.get(tabId) || 0) + 1;
-      tabBlockCounts.set(tabId, current);
-
-      chrome.action.setBadgeText({ tabId, text: String(current) }).catch(() => {});
-      chrome.action.setBadgeBackgroundColor({ tabId, color: "#d93838" }).catch(() => {});
-    }
+  await chrome.declarativeNetRequest.updateDynamicRules({
+    removeRuleIds: existing.map((r) => r.id),
+    addRules
   });
 }
 
-// Reset badge on tab update/refresh
-chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
-  if (changeInfo.status === "loading") {
-    tabBlockCounts.delete(tabId);
-    chrome.action.setBadgeText({ tabId, text: "" }).catch(() => {});
+async function syncContentScripts(s) {
+  const ourIds = Object.values(CONTENT_SCRIPT_IDS);
+  const registered = await chrome.scripting.getRegisteredContentScripts({ ids: ourIds });
+  if (registered.length > 0) {
+    await chrome.scripting.unregisterContentScripts({ ids: registered.map((r) => r.id) });
   }
+  if (!s.masterEnabled) return;
+
+  const base = {
+    matches: PAGE_MATCHES,
+    allFrames: true,
+    // Also inject into about:blank / srcdoc / blob frames (common for ad
+    // iframes), matched against the creating frame's origin.
+    matchOriginAsFallback: true,
+    runAt: "document_start",
+    persistAcrossSessions: true
+  };
+  if (s.allowlistedDomains.length > 0) {
+    base.excludeMatches = s.allowlistedDomains.map(excludePatternFor);
+  }
+
+  const scripts = [];
+  if (s.cosmeticEnabled) {
+    scripts.push({ ...base, id: CONTENT_SCRIPT_IDS.cosmetic, css: ["content/cosmetic.css"] });
+  }
+  if (s.ruleset_ads) {
+    scripts.push({ ...base, id: CONTENT_SCRIPT_IDS.adStubs, js: ["content/scriptlets_ads.js"], world: "MAIN" });
+  }
+  if (s.ruleset_trackers) {
+    scripts.push({ ...base, id: CONTENT_SCRIPT_IDS.trackerStubs, js: ["content/scriptlets_trackers.js"], world: "MAIN" });
+  }
+  // Register individually so one rejected script doesn't drop the others.
+  const results = await Promise.allSettled(
+    scripts.map((script) => chrome.scripting.registerContentScripts([script]))
+  );
+  const failed = results
+    .map((r, i) => (r.status === "rejected" ? `${scripts[i].id}: ${r.reason}` : null))
+    .filter(Boolean);
+  if (failed.length > 0) throw new Error(`Content script registration failed: ${failed.join("; ")}`);
+}
+
+async function syncAll() {
+  const s = await loadSettings();
+  // Run each step independently so one failure doesn't leave the others stale.
+  const results = await Promise.allSettled([syncRulesets(s), syncAllowlist(s), syncContentScripts(s)]);
+  for (const r of results) {
+    if (r.status === "rejected") console.error("ShieldBlock sync failed:", r.reason);
+  }
+}
+
+// Serialize syncs: overlapping runs (install + startup, rapid popup toggles)
+// would otherwise race on getDynamicRules/registerContentScripts.
+let syncChain = Promise.resolve();
+function scheduleSync() {
+  syncChain = syncChain
+    .then(syncAll)
+    .catch((err) => console.error("ShieldBlock sync failed:", err));
+  return syncChain;
+}
+
+// Reconcile on every service-worker start, so a worker killed mid-sync
+// self-heals on its next wake instead of waiting for a settings change.
+scheduleSync();
+
+async function configureBadge() {
+  // Native per-tab blocked-request count; works in packed (Web Store) builds,
+  // unlike onRuleMatchedDebug, and survives service-worker restarts.
+  await chrome.declarativeNetRequest.setExtensionActionOptions({ displayActionCountAsBadgeText: true });
+  await chrome.action.setBadgeBackgroundColor({ color: "#d93838" });
+}
+
+chrome.runtime.onInstalled.addListener(async () => {
+  const stored = await chrome.storage.local.get(SETTING_KEYS);
+  const missing = {};
+  for (const key of SETTING_KEYS) {
+    if (stored[key] === undefined) missing[key] = DEFAULTS[key];
+  }
+  if (Object.keys(missing).length > 0) await chrome.storage.local.set(missing);
+  await chrome.storage.local.remove(LEGACY_KEYS);
+  await configureBadge().catch((err) => console.error("Badge setup failed:", err));
+  await scheduleSync();
 });
 
-chrome.tabs.onRemoved.addListener((tabId) => {
-  tabBlockCounts.delete(tabId);
+chrome.runtime.onStartup.addListener(async () => {
+  await configureBadge().catch((err) => console.error("Badge setup failed:", err));
+  await scheduleSync();
 });
 
-// Listen for messages from popup
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (!message || !message.type) return false;
-
-  if (message.type === "GET_STATS") {
-    const count = tabBlockCounts.get(message.tabId) || 0;
-    sendResponse({ count });
-    return false;
-  }
-
-  if (message.type === "SYNC_RULESETS") {
-    syncRulesets()
-      .then(() => sendResponse({ success: true }))
-      .catch((err) => sendResponse({ success: false, error: err.message }));
-    return true;
-  }
-
-  if (message.type === "UPDATE_ALLOWLIST") {
-    syncDynamicAllowlist()
-      .then(() => sendResponse({ success: true }))
-      .catch((err) => sendResponse({ success: false, error: err.message }));
-    return true;
-  }
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== "local") return;
+  if (SETTING_KEYS.some((key) => key in changes)) scheduleSync();
 });
