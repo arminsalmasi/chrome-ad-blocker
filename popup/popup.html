@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ShieldBlock</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <div class="logo-area">
+        <div class="shield-icon">🛡️</div>
+        <div class="title-area">
+          <h1>ShieldBlock</h1>
+          <span class="version">v1.0 (MV3)</span>
+        </div>
+      </div>
+      <label class="switch master-switch" title="Master Power Toggle">
+        <input type="checkbox" id="master-toggle">
+        <span class="slider round"></span>
+      </label>
+    </header>
+
+    <div class="site-card">
+      <div class="site-info">
+        <span class="site-label">CURRENT DOMAIN</span>
+        <span id="current-domain" class="site-domain">Loading...</span>
+      </div>
+      <div class="site-action">
+        <label class="switch small-switch" title="Allowlist this site">
+          <input type="checkbox" id="site-allow-toggle">
+          <span class="slider round"></span>
+        </label>
+        <span id="site-status" class="status-tag">Protected</span>
+      </div>
+    </div>
+
+    <div class="counter-box">
+      <span class="counter-num" id="blocked-count">0</span>
+      <span class="counter-label">Requests blocked on this page</span>
+    </div>
+
+    <section class="modules">
+      <h2>PROTECTION MODULES</h2>
+      <div class="module-row">
+        <div class="module-text">
+          <span class="module-name">Ad Networks</span>
+          <span class="module-desc">Blocks ad servers, banners, video ads</span>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="module-ads">
+          <span class="slider round"></span>
+        </label>
+      </div>
+
+      <div class="module-row">
+        <div class="module-text">
+          <span class="module-name">Trackers & Telemetry</span>
+          <span class="module-desc">Blocks analytics, beacons, session replay</span>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="module-trackers">
+          <span class="slider round"></span>
+        </label>
+      </div>
+
+      <div class="module-row">
+        <div class="module-text">
+          <span class="module-name">Strip 3rd-Party Cookies</span>
+          <span class="module-desc">Removes cross-site Cookie & Set-Cookie headers</span>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="module-cookies">
+          <span class="slider round"></span>
+        </label>
+      </div>
+
+      <div class="module-row">
+        <div class="module-text">
+          <span class="module-name">Cosmetic Filtering</span>
+          <span class="module-desc">Collapses empty ad frames and banners</span>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="module-cosmetic">
+          <span class="slider round"></span>
+        </label>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <button id="reload-tab" class="btn-reload">🔄 Reload Page to Apply</button>
+    </footer>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>
+

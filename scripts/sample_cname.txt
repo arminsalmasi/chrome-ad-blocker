@@ -1,0 +1,17 @@
+# Disguised CNAME Tracker Subdomains
+# Source: AdGuard CNAME Trackers / NextDNS
+0.0.0.0 smetrics.homedepot.com
+0.0.0.0 smetrics.target.com
+0.0.0.0 smetrics.bestbuy.com
+0.0.0.0 metrics.nordstrom.com
+0.0.0.0 metrics.macys.com
+0.0.0.0 data.adlooxtracking.com
+0.0.0.0 tracking.leadforensics.com
+0.0.0.0 track.adform.net
+0.0.0.0 pixel.wp.com
+0.0.0.0 an.alza.cz
+0.0.0.0 stats.sport1.de
+0.0.0.0 trace.carrefour.fr
+0.0.0.0 metric.lefigaro.fr
+0.0.0.0 analytics.lepoint.fr
+0.0.0.0 tracking.lemonde.fr
