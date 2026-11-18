@@ -3,7 +3,7 @@ BUILD := $(PYTHON) scripts/build_rules.py
 EXCLUDE := -x scripts/exclude_domains.txt
 LISTS := scripts/lists
 
-.PHONY: rules cosmetics update-lists test check site-test assets package
+.PHONY: rules cosmetics update-lists test check site-test window-test assets package
 
 # Rebuild the shipped rulesets and site cosmetics from local inputs only
 # (deterministic; CI verifies the output matches). Upstream snapshots live in
@@ -29,12 +29,16 @@ test:
 
 # Syntax-check extension JS and validate every JSON file.
 check:
-	for f in background.js popup/*.js content/*.js content/cosmetic_sites/*.js tests/site/*.js; do node --check $$f || exit 1; done
+	for f in background.js popup/*.js blocked/*.js content/*.js content/cosmetic_sites/*.js tests/site/*.js; do node --check $$f || exit 1; done
 	for f in manifest.json rules/*.json content/cosmetic_sites/index.json tests/site/sites.json; do $(PYTHON) -m json.tool $$f > /dev/null || exit 1; done
 
 # A/B test against real websites (network + Google Chrome; see tests/site/README.md).
 site-test:
 	cd tests/site && npm install --silent --no-audit --no-fund && node site_test.js $(SITES)
+
+# End-to-end test of the "View blocked requests" window on a real site.
+window-test:
+	cd tests/site && npm install --silent --no-audit --no-fund && node blocked_window_test.js
 
 # Regenerate icons and Web Store graphics (needs Google Chrome; set CHROME=... elsewhere).
 assets:
@@ -44,5 +48,5 @@ assets:
 VERSION := $(shell $(PYTHON) -c "import json; print(json.load(open('manifest.json'))['version'])")
 package: check
 	rm -rf dist && mkdir -p dist
-	zip -qr dist/shieldblock-$(VERSION).zip manifest.json background.js LICENSE THIRD_PARTY_NOTICES.md content icons popup rules -x '*.DS_Store'
+	zip -qr dist/shieldblock-$(VERSION).zip manifest.json background.js LICENSE THIRD_PARTY_NOTICES.md blocked content icons popup rules -x '*.DS_Store'
 	@echo "Built dist/shieldblock-$(VERSION).zip"

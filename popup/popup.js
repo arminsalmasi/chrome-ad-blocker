@@ -22,6 +22,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const siteStatusEl = $("site-status");
   const blockedCountEl = $("blocked-count");
   const reloadBtn = $("reload-tab");
+  const viewBlockedBtn = $("view-blocked");
   const modules = {
     ruleset_ads: $("module-ads"),
     ruleset_trackers: $("module-trackers"),
@@ -122,6 +123,24 @@ document.addEventListener("DOMContentLoaded", async () => {
   for (const [key, input] of Object.entries(modules)) {
     input.addEventListener("change", () => chrome.storage.local.set({ [key]: input.checked }));
   }
+
+  // Opens the blocked-requests list for this tab in its own window.
+  viewBlockedBtn.disabled = !(activeTab && activeTab.id >= 0 && currentHost);
+  viewBlockedBtn.addEventListener("click", async () => {
+    if (!activeTab || !(activeTab.id >= 0)) return;
+    try {
+      await chrome.windows.create({
+        url: chrome.runtime.getURL(`blocked/blocked.html?tabId=${activeTab.id}`),
+        type: "popup",
+        width: 760,
+        height: 640
+      });
+      window.close();
+    } catch (err) {
+      viewBlockedBtn.textContent = "Couldn't open window";
+      console.error("Failed to open blocked-requests window:", err);
+    }
+  });
 
   reloadBtn.addEventListener("click", () => {
     if (activeTab && activeTab.id) {

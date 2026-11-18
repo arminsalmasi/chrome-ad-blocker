@@ -43,6 +43,7 @@ Both files run in the page's own context (`world: "MAIN"`) at `document_start` i
 - **Global Master Switch**: Disables all DNR rulesets, the allowlist rule, and all content scripts.
 - **Per-Site Allowlist**: Adds a single dynamic `allowAllRequests` rule (priority 100) on `main_frame` covering all allowlisted domains. An entry also covers its subdomains. `www.` is stripped when an entry is added.
 - **Granular Module Controls**: Independently toggle Ad Networks, Trackers & Telemetry, Third-Party Cookie Stripping, or Cosmetic Filtering.
+- **Blocked Requests Window**: The popup's **View blocked requests** button opens a separate window listing every request blocked on the current tab, grouped by domain with counts and request types; expand a domain to see full URLs, filter by domain/URL/type, and watch it update live as the page loads. Collected read-only from `webRequest` errors (`net::ERR_BLOCKED_BY_CLIENT`) and kept in memory-only `chrome.storage.session`, cleared on navigation, tab close, and browser exit.
 - **Blocked Request Counter**: The extension badge shows the native per-tab DNR match count (`displayActionCountAsBadgeText`), which works in packed builds. The popup count comes from `getMatchedRules` and only includes the Ad Networks and Trackers rulesets, so the two numbers can differ.
 
 **State model**: `storage.local` is the single source of truth. The popup only writes to storage. The service worker reacts to `storage.onChanged` and runs one serialized sync that reconciles static rulesets, the allowlist rule, and registered content scripts. Changes apply on the next page load; the popup's **Reload Page to Apply** button reloads the active tab.
@@ -61,7 +62,7 @@ Both files run in the page's own context (`world: "MAIN"`) at `document_start` i
 
 **Publishing to the Chrome Web Store**: run `make package` and upload `dist/shieldblock-<version>.zip`. Listing text, permission justifications, data-use answers, and a pre-submit checklist are in [STORE_LISTING.md](STORE_LISTING.md); the privacy policy is [PRIVACY.md](PRIVACY.md); graphics are in `store/` (regenerate with `make assets`).
 
-**Permissions**: `declarativeNetRequest`, `scripting`, `storage`, `activeTab`, and host access to `<all_urls>`. `activeTab` is used by the popup to read the match count for the current tab.
+**Permissions**: `declarativeNetRequest`, `scripting`, `storage`, `activeTab`, `webRequest`, and host access to `<all_urls>`. `activeTab` is used by the popup to read the match count for the current tab; `webRequest` is used read-only to list blocked requests in the blocked-requests window.
 
 ---
 
@@ -160,12 +161,10 @@ python3 scripts/build_rules.py \
 ├── tests/
 │   ├── site/                      # Real-site A/B test harness (make site-test; needs network, not in CI)
 │   └── test_build_rules.py        # Unit tests for the compiler
-├── .github/
-│   └── workflows/
-│       ├── ci.yml                 # CI: unit tests, syntax/JSON checks, rulesets and cosmetics match sources
-│       └── update-lists.yml       # Monthly upstream list refresh; opens a pull request
-├── APPROACH_CLAUDE.md             # In-depth architectural analysis of Claude's blanket 3rd-party design
-└── APPROACH_GEMINI.md             # In-depth architectural analysis of Gemini's targeted DNR design
+└── .github/
+    └── workflows/
+        ├── ci.yml                 # CI: unit tests, syntax/JSON checks, rulesets and cosmetics match sources
+        └── update-lists.yml       # Monthly upstream list refresh; opens a pull request
 ```
 
 ---
@@ -178,6 +177,7 @@ make cosmetics     # Regenerate content/cosmetic_sites/ from scripts/lists/easyl
 make update-lists  # Download fresh snapshots (StevenBlack, AdGuard CNAME, EasyList, EasyPrivacy) into scripts/lists/, then make rules
 make test          # Run the unittest suite in tests/
 make check         # node --check on extension JS and JSON validation for manifest, rulesets, and site cosmetics
+make window-test   # End-to-end test of the blocked-requests window on a real site
 make site-test     # A/B test 14 real sites in installed Google Chrome (SITES="cnn ebay" to pick; CHROME=... to override)
 make assets        # Re-render icons/ and store/ graphics (needs Google Chrome; CHROME=... to override)
 make package       # Build dist/shieldblock-<version>.zip for Web Store upload (runtime files only)
@@ -206,6 +206,11 @@ The `update-lists` workflow runs on the 1st of each month (06:00 UTC) and on dem
 ---
 
 ## Changelog
+
+### 1.5.0
+- **View blocked requests**: new popup button opens a separate window listing the current tab's blocked requests, grouped by domain (counts, types, expandable URLs), with a filter and live updates. Backed by read-only `webRequest` error observation (new `webRequest` permission, no extra install warning) and memory-only `storage.session`; reset when a new page's response arrives, removed when the tab closes; quota-safe per-tab writes.
+- `APPROACH_CLAUDE.md` / `APPROACH_GEMINI.md` are no longer tracked (kept locally as design notes).
+- `tests/site/blocked_window_test.js` (`make window-test`): drives the real popup on Dailymotion; 13/13 checks pass (window total matches Chrome's 33 blocked requests exactly).
 
 ### 1.4.0
 - Blocklists expanded to ~219,000 domains in 221 rules: EasyList (ads) and EasyPrivacy (trackers) domain rules join StevenBlack and AdGuard CNAME. Seed list adds `oa.opera.com`.

@@ -71,6 +71,11 @@ storage:
 Required to save user settings (master switch, per-module toggles, and allowlisted domain names) in chrome.storage.local on the user's device.
 ```
 
+webRequest:
+```text
+Used read-only (no blocking or modification) to observe which requests failed because they were blocked (net::ERR_BLOCKED_BY_CLIENT), so the "View blocked requests" window can list their addresses for the current tab. The list is kept in memory-only session storage, cleared on navigation, tab close and browser exit, and never transmitted. Chrome's declarativeNetRequest does not expose blocked URLs to published extensions, so this is the only way to provide the list.
+```
+
 activeTab:
 ```text
 Required to call declarativeNetRequest.getMatchedRules for the tab the user is viewing when they open the popup, so the popup can show that tab's blocked-request count. Access is limited to the active tab and only when the user opens the popup.
@@ -119,7 +124,7 @@ Certifications to check (all three):
 
 ## Before submitting
 
-- [ ] Bump `version` in `manifest.json` (currently `1.4.0`); the store rejects a version that has already been published.
+- [ ] Bump `version` in `manifest.json` (currently `1.5.0`); the store rejects a version that has already been published.
 - [ ] Run `make test`, `make check`, and `make package`.
 - [ ] Unzip `dist/shieldblock-<version>.zip` and load it unpacked at `chrome://extensions` to smoke-test blocking, the popup, and the allowlist.
 - [ ] Confirm the privacy policy URL above resolves on the `main` branch.

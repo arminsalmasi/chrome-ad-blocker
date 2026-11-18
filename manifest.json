@@ -1,13 +1,14 @@
 {
   "manifest_version": 3,
   "name": "ShieldBlock - Ad & Tracker Blocker",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Fast, private Manifest V3 ad, tracker and cookie blocker: ~219k blocked domains, site-specific hiding, anti-adblock stubs.",
   "permissions": [
     "declarativeNetRequest",
     "scripting",
     "storage",
-    "activeTab"
+    "activeTab",
+    "webRequest"
   ],
   "host_permissions": [
     "<all_urls>"

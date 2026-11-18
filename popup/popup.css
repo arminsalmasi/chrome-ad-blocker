@@ -262,3 +262,24 @@ input:checked + .slider:before {
   background-color: #30363d;
 }
 
+
+.btn-link {
+  margin-top: 6px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--accent-blue);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+.btn-link:hover:not(:disabled) {
+  background: var(--bg-card-hover);
+}
+
+.btn-link:disabled {
+  color: var(--text-muted);
+  cursor: default;
+}
