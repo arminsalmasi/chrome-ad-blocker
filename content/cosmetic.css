@@ -24,6 +24,21 @@ amp-embed[type="adsense"] {
   display: none !important;
 }
 
+/* Publisher ad-slot containers: site-styled placeholders (fixed height, grey
+ * background) that would otherwise remain as empty boxes after their ad
+ * request is blocked. Guarded so a container that also holds editorial
+ * content (paragraphs, headings, articles) is never hidden. */
+:is(.ad-slot,
+    .ad-slot-container,
+    .ad-slot-header__wrapper,
+    [class^="ad-slot__"],
+    [class*=" ad-slot__"],
+    .container__ads,
+    .stack__ads,
+    [data-ad-label-text]):not(:has(p, h1, h2, h3, h4, article)) {
+  display: none !important;
+}
+
 /* Relational selectors (:has) — collapse a wrapper left behind by an ad, but
  * only when every child element is ad content, so wrappers that also hold
  * article text stay visible. */

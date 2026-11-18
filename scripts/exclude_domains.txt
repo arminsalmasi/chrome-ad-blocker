@@ -1,0 +1,3 @@
+# Domains that must never be blocked, even if an upstream list contains them.
+# One domain per line; each entry also covers its subdomains.
+# Add a domain here when a blocklist entry breaks a site, then run `make rules`.

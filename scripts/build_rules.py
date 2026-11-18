@@ -8,6 +8,9 @@ Manifest V3 DNR rulesets split into chunks <= 30,000 rules per file.
 """
 
 import argparse
+import contextlib
+import gzip
+import io
 import json
 import os
 import re
@@ -28,6 +31,8 @@ COSMETIC_MARKERS = ("##", "#@#", "#?#", "#$#", "#%#", "#@$#", "#@?#", "$$", "$@$
 SAFE_ABP_OPTIONS = {"all", "important"}
 
 DNR_MAX_RULES_PER_RULESET = 30000
+DEFAULT_DOMAINS_PER_RULE = 1000
+DEFAULT_RESOURCE_TYPES = ["script", "image", "xmlhttprequest", "sub_frame", "ping", "media", "websocket"]
 
 IGNORED_HOSTS = {
     "localhost", "localhost.localdomain", "broadcasthost",
@@ -39,7 +44,7 @@ POPULAR_UPSTREAM_LISTS = {
     "adguard_dns": "https://adguardteam.github.io/HostlistsRegistry/assets/filter_1.txt",
     "easylist": "https://v.firebog.net/hosts/Easylist.txt",
     "easyprivacy": "https://v.firebog.net/hosts/Easyprivacy.txt",
-    "cname_trackers": "https://raw.githubusercontent.com/AdguardTeam/cname-trackers/master/data/combined_disguised_trackers.txt"
+    "cname_trackers": "https://raw.githubusercontent.com/AdguardTeam/cname-trackers/master/data/combined_disguised_trackers_justdomains.txt"
 }
 
 
@@ -114,86 +119,162 @@ def fetch_or_read_file(source: str) -> list[str]:
             raise
     elif os.path.exists(source):
         print(f"Reading local list: {source}")
-        with open(source, "r", encoding="utf-8", errors="ignore") as f:
+        opener = gzip.open if source.endswith(".gz") else open
+        with opener(source, "rt", encoding="utf-8", errors="ignore") as f:
             return f.readlines()
     else:
         raise FileNotFoundError(f"Input file not found: {source}")
 
 
-def build_dnr_rules(domains: list[str], start_id: int = 1, resource_types: list[str] | None = None) -> list[dict]:
-    if resource_types is None:
-        resource_types = ["script", "image", "xmlhttprequest", "sub_frame", "ping", "media", "websocket"]
+def collapse_subdomains(domains: set[str]) -> list[str]:
+    """Drop domains already covered by a listed parent (requestDomains matches
+    subdomains), e.g. "ads.x.com" is redundant when "x.com" is listed."""
+    kept = []
+    for domain in sorted(domains):
+        labels = domain.split(".")
+        if any(".".join(labels[i:]) in domains for i in range(1, len(labels) - 1)):
+            continue
+        kept.append(domain)
+    return kept
 
+
+def build_dnr_rules(
+    domains: list[str],
+    start_id: int = 1,
+    domains_per_rule: int = DEFAULT_DOMAINS_PER_RULE,
+    excluded: list[str] | None = None,
+    resource_types: list[str] | None = None,
+) -> list[dict]:
+    """Group domains into block rules via condition.requestDomains.
+
+    One rule per domain would exhaust Chrome's 30,000 guaranteed static rules
+    with a single large list; grouping keeps ~100k domains to ~100 rules.
+    requestDomains matches the domain and its subdomains, like "||domain^".
+    """
+    resource_types = resource_types or DEFAULT_RESOURCE_TYPES
     rules = []
-    for idx, domain in enumerate(domains, start=start_id):
+    for offset in range(0, len(domains), domains_per_rule):
+        condition = {
+            "requestDomains": domains[offset:offset + domains_per_rule],
+            "resourceTypes": resource_types,
+        }
+        if excluded:
+            condition["excludedRequestDomains"] = excluded
         rules.append({
-            "id": idx,
+            "id": start_id + len(rules),
             "priority": 1,
             "action": {"type": "block"},
-            "condition": {
-                "urlFilter": f"||{domain}^",
-                "resourceTypes": resource_types
-            }
+            "condition": condition,
         })
     return rules
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Compile domain blocklists into Chrome DNR rulesets")
-    parser.add_argument("--input", "-i", action="append", help="Input file path, URL, or alias (stevenblack, easylist, easyprivacy, adguard_dns)")
-    parser.add_argument("--output-dir", "-o", default="rules", help="Output directory for JSON rulesets")
-    parser.add_argument("--max-rules-per-file", "-m", type=int, default=30000, help="Max rules per file (default: 30000)")
-    parser.add_argument("--prefix", "-p", default="blocklist", help="Filename prefix for generated rules")
-    args = parser.parse_args()
-
-    if not 0 < args.max_rules_per_file <= DNR_MAX_RULES_PER_RULESET:
-        parser.error(f"--max-rules-per-file must be between 1 and {DNR_MAX_RULES_PER_RULESET}")
-
-    if not args.input:
-        parser.error("at least one --input is required")
-    sources = args.input
-    all_domains = set()
-
+def read_domains(sources: list[str], strict: bool = False) -> set[str]:
+    """Parse sources into domains. strict=True warns about every non-comment
+    line that isn't a plain domain (used for exclusion files, where a silently
+    ignored line would leave a site blocked that the user meant to exempt)."""
+    domains = set()
     for src in sources:
-        try:
-            lines = fetch_or_read_file(src)
-        except Exception as err:
-            print(f"Failed to process source '{src}': {err}", file=sys.stderr)
-            sys.exit(1)
-
+        lines = fetch_or_read_file(src)
         count = 0
         for line in lines:
             dom = clean_domain(line)
             if dom:
-                all_domains.add(dom)
+                domains.add(dom)
                 count += 1
+            elif strict and line.strip() and not line.lstrip().startswith(("#", "!")):
+                print(f"  WARNING: ignored invalid entry in {src}: {line.strip()!r} "
+                      "(use a bare domain such as example.com)", file=sys.stderr)
         print(f"  Parsed {count} valid entries from {src}")
+    return domains
 
-    sorted_domains = sorted(all_domains)
-    total_domains = len(sorted_domains)
-    print(f"\nTotal unique domains: {total_domains}")
+
+def covered_by(domain: str, parents: set[str]) -> bool:
+    """True if domain equals, or is a subdomain of, any entry in parents."""
+    labels = domain.split(".")
+    return any(".".join(labels[i:]) in parents for i in range(len(labels) - 1))
+
+
+def apply_exclusions(domains: set[str], excluded: set[str]) -> set[str]:
+    """Drop excluded domains and their subdomains from the block list."""
+    return {d for d in domains if not covered_by(d, excluded)}
+
+
+def dump_domains(path: str, sources: list[str], domains: set[str]) -> None:
+    """Write a cleaned, sorted domain snapshot (one per line) with provenance."""
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    resolved = [POPULAR_UPSTREAM_LISTS.get(s.lower(), s) for s in sources]
+    with contextlib.ExitStack() as stack:
+        if path.endswith(".gz"):
+            # mtime=0 / empty filename keep output byte-identical for identical content.
+            raw = stack.enter_context(open(path, "wb"))
+            gz = stack.enter_context(gzip.GzipFile(fileobj=raw, mode="wb", mtime=0, filename=""))
+            f = stack.enter_context(io.TextIOWrapper(gz, encoding="utf-8"))
+        else:
+            f = stack.enter_context(open(path, "w", encoding="utf-8"))
+        f.write("# Generated by scripts/build_rules.py --dump-domains. Do not edit by hand.\n")
+        for src in resolved:
+            f.write(f"# Source: {src}\n")
+        f.write(f"# Domains: {len(domains)}\n")
+        for dom in sorted(domains):
+            f.write(dom + "\n")
+    print(f"Wrote {len(domains)} domains to {path}")
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Compile domain blocklists into Chrome DNR rulesets")
+    parser.add_argument("--input", "-i", action="append",
+                        help="Input file path, URL, or alias (" + ", ".join(POPULAR_UPSTREAM_LISTS) + ")")
+    parser.add_argument("--exclude", "-x", action="append", default=[],
+                        help="File of domains never to block (added as excludedRequestDomains)")
+    parser.add_argument("--output-dir", "-o", default="rules", help="Output directory for JSON rulesets")
+    parser.add_argument("--max-rules-per-file", "-m", type=int, default=DNR_MAX_RULES_PER_RULESET,
+                        help=f"Max rules per file (default: {DNR_MAX_RULES_PER_RULESET})")
+    parser.add_argument("--domains-per-rule", "-d", type=int, default=DEFAULT_DOMAINS_PER_RULE,
+                        help=f"Domains grouped into one rule (default: {DEFAULT_DOMAINS_PER_RULE})")
+    parser.add_argument("--prefix", "-p", default="blocklist", help="Filename prefix for generated rules")
+    parser.add_argument("--dump-domains", metavar="PATH",
+                        help="Write the cleaned domain list to PATH (a reproducible snapshot) instead of rules")
+    args = parser.parse_args()
+
+    if not 0 < args.max_rules_per_file <= DNR_MAX_RULES_PER_RULESET:
+        parser.error(f"--max-rules-per-file must be between 1 and {DNR_MAX_RULES_PER_RULESET}")
+    if args.domains_per_rule <= 0:
+        parser.error("--domains-per-rule must be greater than 0")
+    if not args.input:
+        parser.error("at least one --input is required")
+
+    try:
+        all_domains = read_domains(args.input)
+        excluded = sorted(read_domains(args.exclude, strict=True)) if args.exclude else []
+    except Exception as err:
+        print(f"Failed to read sources: {err}", file=sys.stderr)
+        sys.exit(1)
+
+    if args.dump_domains:
+        dump_domains(args.dump_domains, args.input, all_domains)
+        return
+
+    # Excluded domains (and their subdomains) are also dropped from the list
+    # itself; excludedRequestDomains then protects them from parent entries.
+    all_domains = apply_exclusions(all_domains, set(excluded))
+    domains = collapse_subdomains(all_domains)
+    print(f"\nTotal unique domains: {len(all_domains)} ({len(domains)} after collapsing covered subdomains)")
+
+    rules = build_dnr_rules(domains, domains_per_rule=args.domains_per_rule, excluded=excluded)
+    chunk_size = args.max_rules_per_file
+    chunks = [rules[i:i + chunk_size] for i in range(0, len(rules), chunk_size)] or [[]]
 
     os.makedirs(args.output_dir, exist_ok=True)
-    chunk_size = args.max_rules_per_file
-    rule_id = 1
-    chunks = [sorted_domains[i:i + chunk_size] for i in range(0, total_domains, chunk_size)]
-
-    if not chunks:
-        chunks = [[]]
-
     written = []
     for index, chunk in enumerate(chunks, start=1):
         filename = f"{args.prefix}_{index}.json" if len(chunks) > 1 else f"{args.prefix}.json"
         out_path = os.path.join(args.output_dir, filename)
-        rules = build_dnr_rules(chunk, start_id=rule_id)
-        rule_id += len(rules)
-
         with open(out_path, "w", encoding="utf-8") as f:
-            json.dump(rules, f, indent=2)
+            json.dump(chunk, f, indent=2)
             f.write("\n")
-
         written.append(out_path)
-        print(f"Wrote {len(rules)} rules to {out_path}")
+        print(f"Wrote {len(chunk)} rules to {out_path}")
 
     # New ruleset files are inert until declared in manifest.json.
     print("\nEnsure these entries exist in manifest.json -> declarative_net_request.rule_resources:")

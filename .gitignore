@@ -26,3 +26,6 @@ chat_history.md
 
 # Chrome-generated when loading the unpacked extension
 _metadata/
+
+# Web Store package output
+dist/
