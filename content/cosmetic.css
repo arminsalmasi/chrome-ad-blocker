@@ -1,0 +1,51 @@
+/* ShieldBlock cosmetic filters.
+ * Registered by background.js as a content-script stylesheet (all frames,
+ * document_start) only while Cosmetic Filtering is enabled. */
+
+/* Standard ad element selectors */
+.adsbygoogle,
+[id^="google_ads"],
+[id^="div-gpt-ad"],
+[class~="ad-banner"],
+[class*=" ad-banner-"],
+[class^="ad-banner-"],
+[class~="ad-container"],
+[class*=" ad-container-"],
+[class^="ad-container-"],
+[class~="advertisement"],
+.taboola,
+.trc_related_container,
+.outbrain,
+.OUTBRAIN,
+.revcontent,
+.mgid,
+amp-ad,
+amp-embed[type="adsense"] {
+  display: none !important;
+}
+
+/* Publisher ad-slot containers: site-styled placeholders (fixed height, grey
+ * background) that would otherwise remain as empty boxes after their ad
+ * request is blocked. Guarded so a container that also holds editorial
+ * content (paragraphs, headings, articles) is never hidden. */
+:is(.ad-slot,
+    .ad-slot-container,
+    .ad-slot-header__wrapper,
+    [class^="ad-slot__"],
+    [class*=" ad-slot__"],
+    .container__ads,
+    .stack__ads,
+    [data-ad-label-text]):not(:has(p, h1, h2, h3, h4, article)) {
+  display: none !important;
+}
+
+/* Relational selectors (:has) — collapse a wrapper left behind by an ad, but
+ * only when every child element is ad content, so wrappers that also hold
+ * article text stay visible. */
+:is(div, aside):has(> :is(.adsbygoogle, [id^="google_ads"], [id^="div-gpt-ad"], [class~="ad-banner"],
+    iframe[src*="doubleclick.net"], iframe[src*="googlesyndication.com"],
+    iframe[src*="adnxs.com"], iframe[src*="rubiconproject.com"])):not(:has(> :not(.adsbygoogle, [id^="google_ads"], [id^="div-gpt-ad"], [class~="ad-banner"],
+    iframe[src*="doubleclick.net"], iframe[src*="googlesyndication.com"],
+    iframe[src*="adnxs.com"], iframe[src*="rubiconproject.com"], script, ins, noscript))) {
+  display: none !important;
+}
