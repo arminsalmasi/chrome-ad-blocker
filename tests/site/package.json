@@ -3,5 +3,5 @@
   "private": true,
   "description": "A/B tests ShieldBlock against real websites with Puppeteer and an installed Google Chrome.",
   "scripts": { "test": "node site_test.js" },
-  "devDependencies": { "puppeteer-core": "24.43.1" }
+  "devDependencies": { "puppeteer-core": "25.18.1" }
 }
